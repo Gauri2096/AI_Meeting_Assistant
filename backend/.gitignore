@@ -1,0 +1,42 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Uploads / recordings
+uploads/
+recordings/
+
+# Alembic cache
+*.pyc
+
+# Logs
+*.log
+
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Node
+frontend/node_modules/
+
+# Build artifacts
+dist/
+build/
+
