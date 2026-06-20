@@ -1,0 +1,19 @@
+{
+  "full_text": "Can you generate audio files? If so, create an audio file of 10 seconds of two people talking. That's a very specific request. I can help you write the script for it, but I can't actually make the sound.",
+  "segments": [
+    {
+      "speaker": "SPEAKER_01",
+      "text": "Can you generate audio files? If so, create an audio file of 10 seconds of two people talking.",
+      "start": 0.091,
+      "end": 11.942
+    },
+    {
+      "speaker": "SPEAKER_00",
+      "text": "That's a very specific request. I can help you write the script for it, but I can't actually make the sound.",
+      "start": 13.083,
+      "end": 25.314
+    }
+  ],
+  "language": "en",
+  "duration": 25.314
+}

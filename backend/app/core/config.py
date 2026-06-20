@@ -8,7 +8,8 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: str
     GROQ_MODEL: str = "llama3-8b-8192"
-
+    GOOGLE_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash"
     TRANSCRIPTION_PROVIDER: str = "whisperx"
     LLM_PROVIDER: str = "groq"
 
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     HF_TOKEN: str
     MIGRATION_DATABASE_URL:str
     WHISPER_MODEL_SIZE: str = "base"
-
+    TRANSCRIPTION_PROVIDER: str = "whisperx"
     UPLOAD_DIR: str = "uploads"
 
     SECRET_KEY: str
