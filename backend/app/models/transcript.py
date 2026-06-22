@@ -23,6 +23,8 @@ class Transcript(Base):
 
     speaker_map = Column(JSON, nullable=False, default=dict)
 
+    speaker_metadata = Column(JSON, nullable=True)
+
     language = Column(String(10), nullable=False, default="en")
 
     created_at = Column(

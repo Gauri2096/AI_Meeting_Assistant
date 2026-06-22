@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama3-8b-8192"
     GOOGLE_API_KEY: str
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    DEEPGRAM_API_KEY: str = ""
     TRANSCRIPTION_PROVIDER: str = "whisperx"
     LLM_PROVIDER: str = "groq"
 

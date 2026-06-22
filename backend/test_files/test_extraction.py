@@ -185,6 +185,5 @@ speaker_map = {
 result = process_transcript_only(
     meeting_id=meeting.id,
     transcript_text=transcript_text,
-    speaker_map=speaker_map,
-    db=db
+    speaker_map=speaker_map
 )
