@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import AudioRecorder from "@/components/AudioRecorder";
 
 export default function UploadPage() {
+  const router = useRouter();
   // Shared Upload/Recording States
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -34,6 +36,13 @@ export default function UploadPage() {
         const currentStatus = data.status;
         setStatus(currentStatus);
 
+        // Redirect immediately on pending_speaker_mapping
+        if (currentStatus === "pending_speaker_mapping") {
+          clearInterval(intervalId);
+          router.push(`/meetings/${meetingId}/speakers`);
+          return;
+        }
+
         // Stop polling on terminal states
         if (
           currentStatus === "pending_review" ||
@@ -50,7 +59,7 @@ export default function UploadPage() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [meetingId, API_BASE_URL]);
+  }, [meetingId, API_BASE_URL, router]);
 
   // Clean up audio preview URL on unmount
   useEffect(() => {
@@ -87,7 +96,11 @@ export default function UploadPage() {
 
       const data = await response.json();
       setMeetingId(data.id);
-      setStatus(data.status || "processing");
+      const initialStatus = data.status || "processing";
+      setStatus(initialStatus);
+      if (initialStatus === "pending_speaker_mapping") {
+        router.push(`/meetings/${data.id}/speakers`);
+      }
     } catch (err: any) {
       console.error("Upload error:", err);
       setError(err.message || "An error occurred during upload.");
@@ -180,6 +193,10 @@ export default function UploadPage() {
         return "Uploading file to server...";
       case "processing":
         return "Transcribing your meeting...";
+      case "pending_speaker_mapping":
+        return "Speaker mapping required...";
+      case "extracting":
+        return "Extracting meeting intelligence...";
       case "pending_extraction":
         return "Extracting meeting intelligence...";
       case "pending_review":
