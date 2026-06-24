@@ -7,6 +7,8 @@ import { MeetingDetail, TranscriptResponse } from "@/types/meeting";
 import { MeetingIntelligence } from "@/types/intelligence";
 import TranscriptViewer from "@/components/meetings/TranscriptViewer";
 import IntelligencePanel from "@/components/meetings/IntelligencePanel";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface ReviewPageProps {
   params: Promise<{ meetingId: string }>;
@@ -15,6 +17,12 @@ interface ReviewPageProps {
 export default function ReviewPage({ params }: ReviewPageProps) {
   const { meetingId } = use(params);
   const router = useRouter();
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   // Baseline data from backend
   const [meeting, setMeeting] = useState<MeetingDetail | null>(null);
@@ -206,7 +214,8 @@ export default function ReviewPage({ params }: ReviewPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col relative">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col relative">
       {/* Navbar / Top Bar */}
       <header className="border-b border-slate-900 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-3">
@@ -295,6 +304,20 @@ export default function ReviewPage({ params }: ReviewPageProps) {
               </span>
             </div>
           )}
+
+          {user && (
+            <div className="hidden md:flex flex-col text-right text-[10px] text-slate-500 pl-2 border-l border-slate-900">
+              <span className="font-bold text-slate-350">{user.name}</span>
+              <span>{user.email}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className="cursor-pointer text-xs font-bold text-slate-400 hover:text-rose-450 transition-colors border border-slate-800 hover:border-rose-900/40 bg-slate-900/50 px-2.5 py-1.5 rounded-lg shrink-0"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
@@ -363,6 +386,7 @@ export default function ReviewPage({ params }: ReviewPageProps) {
           <span className="text-sm font-medium">{toastMessage}</span>
         </div>
       )}
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

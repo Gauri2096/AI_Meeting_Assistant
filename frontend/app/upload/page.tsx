@@ -2,10 +2,19 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import AudioRecorder from "@/components/AudioRecorder";
+import { getMeeting, uploadMeetingFile } from "@/lib/api/meetings";
 
 export default function UploadPage() {
   const router = useRouter();
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
   // Shared Upload/Recording States
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -28,11 +37,7 @@ export default function UploadPage() {
 
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch meeting status");
-        }
-        const data = await response.json();
+        const data = await getMeeting(meetingId);
         const currentStatus = data.status;
         setStatus(currentStatus);
 
@@ -59,7 +64,7 @@ export default function UploadPage() {
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [meetingId, API_BASE_URL, router]);
+  }, [meetingId, router]);
 
   // Clean up audio preview URL on unmount
   useEffect(() => {
@@ -84,17 +89,8 @@ export default function UploadPage() {
     formData.append("source", "upload");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/meetings/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const data = await uploadMeetingFile(formData);
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to upload file");
-      }
-
-      const data = await response.json();
       setMeetingId(data.id);
       const initialStatus = data.status || "processing";
       setStatus(initialStatus);
@@ -211,7 +207,21 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-radial from-slate-900 to-zinc-950 px-4 py-12 text-slate-100 font-sans">
+    <ProtectedRoute>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-radial from-slate-900 to-zinc-950 px-4 py-12 text-slate-100 font-sans">
+        {user && (
+          <div className="w-full max-w-4xl flex items-center justify-between mb-4 px-2">
+            <div className="text-xs text-slate-400">
+              Signed in as <span className="font-bold text-slate-350">{user.name}</span> ({user.email})
+            </div>
+            <button
+              onClick={handleLogout}
+              className="cursor-pointer text-xs font-bold text-slate-400 hover:text-rose-450 transition-colors border border-slate-800 hover:border-rose-900/40 bg-slate-900/50 px-3 py-1.5 rounded-lg"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       <div className="w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900/60 p-8 shadow-2xl backdrop-blur-xl transition-all duration-300">
         
         {/* Header */}
@@ -517,5 +527,6 @@ export default function UploadPage() {
 
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

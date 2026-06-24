@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { getSpeakers, updateSpeakers } from "@/lib/api/meetings";
 import { SpeakerResponse, SpeakerDetails } from "@/types/speaker";
 import SpeakerMappingForm from "@/components/meetings/SpeakerMappingForm";
+import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface SpeakerMappingPageProps {
   params: Promise<{ meetingId: string }>;
@@ -13,6 +15,12 @@ interface SpeakerMappingPageProps {
 export default function SpeakerMappingPage({ params }: SpeakerMappingPageProps) {
   const { meetingId } = use(params);
   const router = useRouter();
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   const [speakers, setSpeakers] = useState<SpeakerResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +62,21 @@ export default function SpeakerMappingPage({ params }: SpeakerMappingPageProps) 
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-radial from-slate-900 to-zinc-950 px-4 py-12 text-slate-100 font-sans">
+    <ProtectedRoute>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-radial from-slate-900 to-zinc-950 px-4 py-12 text-slate-100 font-sans">
+        {user && (
+          <div className="w-full max-w-4xl flex items-center justify-between mb-4 px-2">
+            <div className="text-xs text-slate-400">
+              Signed in as <span className="font-bold text-slate-350">{user.name}</span> ({user.email})
+            </div>
+            <button
+              onClick={handleLogout}
+              className="cursor-pointer text-xs font-bold text-slate-400 hover:text-rose-450 transition-colors border border-slate-800 hover:border-rose-900/40 bg-slate-900/50 px-3 py-1.5 rounded-lg"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       <div className="w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900/60 p-8 shadow-2xl backdrop-blur-xl transition-all duration-300">
         {/* Header */}
         <div className="mb-10 text-center">
@@ -112,5 +134,6 @@ export default function SpeakerMappingPage({ params }: SpeakerMappingPageProps) 
         )}
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
