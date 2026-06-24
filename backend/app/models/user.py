@@ -10,7 +10,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    bank_emp_id= Column(String(255), nullable=False)
+    bank_emp_id= Column(String(255),  unique=True,index=True,nullable=False)
     name = Column(String(255), nullable=False)
 
     email = Column(String(255), unique=True, index=True, nullable=False)

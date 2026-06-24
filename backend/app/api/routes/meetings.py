@@ -56,7 +56,11 @@ from app.schemas.intelligence import (
     IntelligenceResponse,
 )
 from pydantic import BaseModel
-
+from app.core.auth import get_current_user
+from app.models.user import User
+from app.core.permissions import (
+    check_meeting_access,
+)
 
 class TranscriptTestRequest(BaseModel):
     transcript_text: str
@@ -256,7 +260,11 @@ def process_transcript_only(
 
         db.add(intelligence)
 
-        meeting.status = "pending_review"
+        if agent_result["needs_human_review"]:
+            meeting.status = "needs_review"
+        else:
+            meeting.status = "pending_review"
+            
         logger.info("Saving intelligence")
         db.commit()
         logger.info("Intelligence saved")
@@ -284,7 +292,10 @@ def process_transcript_only(
             meeting.status = "failed"
             db.commit()
 
-        logger.exception("PROCESS FAILED")
+       
+        logger.exception(
+            "PROCESS TRANSCRIPT ONLY FAILED"
+        )
 
     finally:
         db.close()
@@ -350,6 +361,7 @@ def process_transcription(
     "/upload",
     response_model=MeetingCreateResponse
 )
+
 async def upload_meeting(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -357,6 +369,7 @@ async def upload_meeting(
     attendees_json: str = Form("[]"),
     source: str = Form("upload"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if not (
         file.content_type.startswith("audio/")
@@ -374,15 +387,14 @@ async def upload_meeting(
             status_code=400,
             detail="Invalid attendees_json"
         )
-
+    
     meeting = Meeting(
         title=title or file.filename,
         source=source,
-        organiser_email="system",
+        organiser_email=current_user.email,
         attendees=attendees,
         status="processing",
     )
-
     db.add(meeting)
     db.commit()
     db.refresh(meeting)
@@ -410,12 +422,27 @@ async def upload_meeting(
 )
 def list_meetings(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(Meeting)
-        .order_by(Meeting.created_at.desc())
-        .all()
-    )
+    meetings=db.query(Meeting).order_by(Meeting.created_at.desc()).all()
+   
+    visible_meetings = []
+
+    for meeting in meetings:
+
+        attendees = meeting.attendees or []
+
+        if (
+            meeting.organiser_email
+            == current_user.email
+        ):
+            visible_meetings.append(meeting)
+            continue
+
+        if current_user.email in attendees:
+            visible_meetings.append(meeting)
+
+    return visible_meetings
 
 @router.get(
     "/{meeting_id}",
@@ -424,26 +451,44 @@ def list_meetings(
 def get_meeting(
     meeting_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     meeting = (
         db.query(Meeting)
-        .filter(Meeting.id == meeting_id)
+        .filter(
+            Meeting.id == meeting_id
+        )
         .first()
     )
 
     if not meeting:
         raise HTTPException(
             status_code=404,
-            detail="Meeting not found"
+            detail="Meeting not found",
         )
 
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
+
     return meeting
+
 
 @router.get("/{meeting_id}/transcript")
 def get_transcript(
     meeting_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    meeting= (
+        db.query(Meeting)
+        .filter(
+            Meeting.id == meeting_id
+        )
+        .first()
+    )
+
     transcript = (
         db.query(Transcript)
         .filter(
@@ -457,7 +502,10 @@ def get_transcript(
             status_code=404,
             detail="Transcript not found"
         )
-
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     return transcript
 
 @router.get(
@@ -467,7 +515,16 @@ def get_transcript(
 def get_speakers(
     meeting_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    meeting = (
+        db.query(Meeting)
+        .filter(
+            Meeting.id == meeting_id
+        )
+        .first()
+    )
+
     transcript = (
         db.query(Transcript)
         .filter(
@@ -513,7 +570,10 @@ def get_speakers(
                 "current_email": mapped.get("email"),
             }
         )
-
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     return speakers
 
 @router.put(
@@ -524,6 +584,7 @@ def update_speakers(
     payload: SpeakerMappingRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     meeting = (
         db.query(Meeting)
@@ -536,7 +597,10 @@ def update_speakers(
             status_code=404,
             detail="Meeting not found",
         )
-
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     transcript = (
         db.query(Transcript)
         .filter(
@@ -621,7 +685,26 @@ def update_speakers(
 def get_intelligence(
     meeting_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    meeting = (
+        db.query(Meeting)
+        .filter(
+            Meeting.id == meeting_id
+        )
+        .first()
+    )
+
+    if not meeting:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     intelligence = (
         db.query(MeetingIntelligence)
         .filter(
@@ -647,7 +730,26 @@ def update_intelligence(
     meeting_id: UUID,
     payload: IntelligenceUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    meeting = (
+        db.query(Meeting)
+        .filter(
+            Meeting.id == meeting_id
+        )
+        .first()
+    )
+
+    if not meeting:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     intelligence = (
         db.query(MeetingIntelligence)
         .filter(
@@ -719,6 +821,7 @@ def update_intelligence(
 def approve_meeting(
     meeting_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     meeting = (
         db.query(Meeting)
@@ -733,7 +836,10 @@ def approve_meeting(
             status_code=404,
             detail="Meeting not found",
         )
-
+    check_meeting_access(
+        meeting,
+        current_user,
+    )    
     intelligence = (
         db.query(MeetingIntelligence)
         .filter(
@@ -786,6 +892,7 @@ def test_process_meeting(
     meeting_id: UUID,
     payload: TranscriptTestRequest,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     meeting = (
         db.query(Meeting)
@@ -798,7 +905,10 @@ def test_process_meeting(
             status_code=404,
             detail="Meeting not found",
         )
-
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
     transcript = Transcript(
         meeting_id=meeting.id,
         raw_text=payload.transcript_text,

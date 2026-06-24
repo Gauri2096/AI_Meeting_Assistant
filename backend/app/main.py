@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.meetings import router as meetings_router
-
+from app.api.routes.auth import router as auth_router
+print("MAIN LOADED:", __file__)
 app = FastAPI(
     title="Meeting Assistant API",
     version="1.0.0"
@@ -25,10 +26,8 @@ app.include_router(
     prefix="/meetings",
     tags=["Meetings"]
 )
+app.include_router(auth_router)
 
 @app.get("/health", tags=["System"])
 def health():
-    return {
-        "status": "ok",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    raise Exception("HEALTH TEST")
