@@ -5,24 +5,15 @@ import { SpeakerResponse, SpeakerDetails } from "@/types/speaker";
 
 interface SpeakerCardProps {
   speaker: SpeakerResponse;
-  value: SpeakerDetails;
-  onChange: (details: SpeakerDetails) => void;
-  validationError?: string;
+  value: string;
+  onChange: (name: string) => void;
 }
 
 export default function SpeakerCard({
   speaker,
   value,
   onChange,
-  validationError,
 }: SpeakerCardProps) {
-  const handleChange = (field: keyof SpeakerDetails, val: string) => {
-    onChange({
-      ...value,
-      [field]: val,
-    });
-  };
-
   return (
     <div className="rounded-xl border border-card-border bg-card-bg p-6 shadow-sm space-y-4 transition-all duration-300 hover:border-slate-400 dark:hover:border-slate-700">
       <div className="flex items-center justify-between">
@@ -42,66 +33,18 @@ export default function SpeakerCard({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Name Input */}
-        <div>
-          <label className="block text-xs font-semibold text-muted-text mb-1">
-            Name <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={value.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-            placeholder="e.g. John Smith"
-            className="w-full rounded-lg bg-background border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200"
-          />
-        </div>
-
-        {/* Email Input */}
-        <div>
-          <label className="block text-xs font-semibold text-muted-text mb-1">
-            Email <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="email"
-            value={value.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-            placeholder="e.g. john@company.com"
-            className="w-full rounded-lg bg-background border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200"
-          />
-        </div>
-
-        {/* Department Input */}
-        <div>
-          <label className="block text-xs font-semibold text-muted-text mb-1">
-            Department
-          </label>
-          <input
-            type="text"
-            value={value.department || ""}
-            onChange={(e) => handleChange("department", e.target.value)}
-            placeholder="e.g. Sales"
-            className="w-full rounded-lg bg-background border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200"
-          />
-        </div>
-
-        {/* Role Input */}
-        <div>
-          <label className="block text-xs font-semibold text-muted-text mb-1">
-            Role
-          </label>
-          <input
-            type="text"
-            value={value.role || ""}
-            onChange={(e) => handleChange("role", e.target.value)}
-            placeholder="e.g. Director"
-            className="w-full rounded-lg bg-background border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200"
-          />
-        </div>
+      <div>
+        <label className="block text-xs font-semibold text-muted-text mb-1">
+          Name <span className="text-rose-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="e.g. John Smith"
+          className="w-full md:w-1/2 rounded-lg bg-background border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200"
+        />
       </div>
-      {validationError && (
-        <p className="text-xs text-rose-600 dark:text-rose-400 mt-1">{validationError}</p>
-      )}
     </div>
   );
 }

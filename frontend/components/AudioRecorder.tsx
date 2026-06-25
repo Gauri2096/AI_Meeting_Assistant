@@ -112,7 +112,7 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-card-bg border border-card-border rounded-2xl shadow-sm max-w-sm w-full mx-auto transition-all duration-300">
+    <div className="flex flex-col items-center justify-center p-6 bg-background border border-card-border rounded-xl shadow-sm h-72 w-full transition-all duration-300">
       <div className="mb-4 text-center">
         <h3 className="text-lg font-semibold text-foreground font-sans">Voice Recorder</h3>
         <p className="text-xs text-muted-text mt-1">Record and upload audio directly</p>

@@ -6,7 +6,7 @@ export interface SpeakerDetails {
 }
 
 export interface SpeakerMappingRequest {
-  speaker_map: Record<string, SpeakerDetails>;
+  speaker_map: Record<string, string>;
 }
 
 export interface SpeakerResponse {

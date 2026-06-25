@@ -21,9 +21,11 @@ export interface MeetingDetail {
   source: string;
   created_at: string;
   organiser_email: string;
-  attendees: Attendee[];
+  attendees: string[];
   duration_seconds: number | null;
   webex_meeting_id: string | null;
+  speaker_mapping_mode: string;
+  created_by_user_id?: string | null;
   can_edit?: boolean;
 }
 

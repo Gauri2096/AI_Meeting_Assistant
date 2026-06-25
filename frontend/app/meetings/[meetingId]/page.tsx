@@ -8,6 +8,7 @@ import {
   getTranscript,
   getIntelligence,
   updateIntelligence,
+  updateMeetingMetadata,
   approveMeeting,
   downloadMeetingPdf,
   retryTranscription,
@@ -44,6 +45,49 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
   const [meeting, setMeeting] = useState<MeetingDetail | null>(null);
   const [transcript, setTranscript] = useState<TranscriptResponse | null>(null);
   const [editedTitle, setEditedTitle] = useState("");
+
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaAttendees, setMetaAttendees] = useState<string[]>([]);
+  const [newMetaAttendee, setNewMetaAttendee] = useState("");
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [newEmailRecipient, setNewEmailRecipient] = useState("");
+
+  const handleAddMetaAttendee = () => {
+    const trimmed = newMetaAttendee.trim().toLowerCase();
+    if (trimmed && !metaAttendees.includes(trimmed) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setMetaAttendees([...metaAttendees, trimmed]);
+      setNewMetaAttendee("");
+    }
+  };
+
+  const handleRemoveMetaAttendee = (email: string) => {
+    setMetaAttendees(metaAttendees.filter((a) => a !== email));
+  };
+
+  const handleSaveMetadata = async () => {
+    setIsSavingMetadata(true);
+    setToastMessage(null);
+    try {
+      const updated = await updateMeetingMetadata(meetingId, {
+        title: metaTitle,
+        attendees: metaAttendees,
+      });
+      setMeeting(updated);
+      setEditedTitle(updated.title || "");
+      setToastMessage("Metadata saved successfully!");
+      setToastType("success");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      console.error("Failed to save metadata:", err);
+      setToastMessage(err.message || "Failed to save metadata.");
+      setToastType("error");
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  };
 
   // Local state for edits
   const [originalIntelligence, setOriginalIntelligence] = useState<MeetingIntelligence | null>(null);
@@ -96,6 +140,8 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
       const data = await getMeeting(meetingId);
       setMeeting(data);
       setEditedTitle(data.title || "");
+      setMetaTitle(data.title || "");
+      setMetaAttendees(data.attendees || []);
       if (data.status === "approved") {
         const exists = await checkPdfExists(meetingId);
         setPdfExists(exists);
@@ -273,36 +319,17 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
     setIsActionLoading(true);
     setToastMessage(null);
     try {
-      let speakers = [];
+      let speakers: SpeakerResponse[] = [];
       try {
         speakers = await getSpeakers(meetingId);
       } catch (e) {
         console.warn("No speakers retrieved, proceeding with empty map:", e);
       }
-      
-      const speakerMap: Record<string, any> = {};
+
+      const speakerMap: Record<string, string> = {};
       speakers.forEach((s) => {
-        speakerMap[s.speaker_label] = {
-          name: s.current_name || s.speaker_label,
-          email: s.current_email || `${s.speaker_label.toLowerCase()}@bank.com`,
-          department: "General",
-          role: "Attendee"
-        };
+        speakerMap[s.speaker_label] = s.current_name || s.speaker_label;
       });
-      
-      if (meeting?.attendees) {
-        meeting.attendees.forEach((att) => {
-          const matchedSpeaker = speakers.find(s => s.current_email === att.email || s.current_name === att.name);
-          if (matchedSpeaker) {
-            speakerMap[matchedSpeaker.speaker_label] = {
-              name: att.name,
-              email: att.email,
-              department: att.department || "General",
-              role: att.role || "Attendee"
-            };
-          }
-        });
-      }
 
       await updateSpeakers(meetingId, { speaker_map: speakerMap });
       setToastMessage("Intelligence extraction triggered successfully!");
@@ -340,32 +367,49 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
     }
   };
 
+  const handleAddEmailRecipient = () => {
+    const trimmed = newEmailRecipient.trim().toLowerCase();
+    if (trimmed && !emailRecipients.includes(trimmed) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailRecipients([...emailRecipients, trimmed]);
+      setNewEmailRecipient("");
+    }
+  };
+
+  const handleRemoveEmailRecipient = (email: string) => {
+    setEmailRecipients(emailRecipients.filter((r) => r !== email));
+  };
+
+  const openEmailModal = () => {
+    if (!meeting) return;
+    const recipientsSet = new Set<string>();
+    if (meeting.organiser_email) {
+      recipientsSet.add(meeting.organiser_email);
+    }
+    if (meeting.attendees) {
+      meeting.attendees.forEach((email) => {
+        if (email) {
+          recipientsSet.add(email);
+        }
+      });
+    }
+    setEmailRecipients(Array.from(recipientsSet));
+    setIsEmailModalOpen(true);
+  };
+
   const handleSendEmail = async () => {
     if (!meeting) return;
+    if (emailRecipients.length === 0) {
+      setToastMessage("Please add at least one recipient.");
+      setToastType("error");
+      return;
+    }
     setIsSendingEmail(true);
     setToastMessage(null);
     try {
-      // Gather recipients: organizer + attendees
-      const recipientsSet = new Set<string>();
-      if (meeting.organiser_email) {
-        recipientsSet.add(meeting.organiser_email);
-      }
-      if (meeting.attendees) {
-        meeting.attendees.forEach((att) => {
-          if (att.email) {
-            recipientsSet.add(att.email);
-          }
-        });
-      }
-
-      const recipients = Array.from(recipientsSet);
-      if (recipients.length === 0) {
-        throw new Error("No recipients found for this meeting.");
-      }
-
-      await sendMeetingEmail(meetingId, recipients);
+      await sendMeetingEmail(meetingId, emailRecipients);
       setToastMessage("Email report sent successfully!");
       setToastType("success");
+      setIsEmailModalOpen(false);
       setTimeout(() => {
         setToastMessage(null);
       }, 3000);
@@ -458,7 +502,7 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
             )}
             {showButton(
               "Send Email",
-              handleSendEmail,
+              openEmailModal,
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>,
@@ -483,6 +527,7 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
           isActionLoading
         );
       case "pending_speaker_mapping":
+        if (meeting.speaker_mapping_mode === "automatic") return null;
         return showButton(
           "Complete Speaker Mapping",
           () => router.push(`/meetings/${meetingId}/speakers`),
@@ -492,6 +537,7 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
           "primary"
         );
       case "failed_speaker_mapping":
+        if (meeting.speaker_mapping_mode === "automatic") return null;
         return showButton(
           "Retry Speaker Mapping",
           () => router.push(`/meetings/${meetingId}/speakers`),
@@ -535,7 +581,7 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
               )}
               {showButton(
                 "Send Email",
-                handleSendEmail,
+                openEmailModal,
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>,
@@ -558,6 +604,139 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
       default:
         return null;
     }
+  };
+
+  const renderMetadataCard = () => {
+    if (loadingMeeting || !meeting) return null;
+
+    return (
+      <div className="rounded-2xl border border-card-border bg-card-bg p-6 shadow-sm space-y-4 transition-colors duration-150 animate-fadeIn mb-6">
+        <div className="flex items-center justify-between border-b border-card-border pb-3">
+          <h2 className="text-base font-bold text-foreground">Meeting Metadata</h2>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${meeting.speaker_mapping_mode === "automatic"
+              ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
+              : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+            }`}>
+            {meeting.speaker_mapping_mode === "automatic" ? "Automatic Identification" : "Manual Speaker Mapping"}
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {/* Title */}
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+              Meeting Title
+            </label>
+            {isCreator ? (
+              <input
+                type="text"
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
+                disabled={isSavingMetadata}
+                className="w-full rounded-lg bg-background border border-card-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary transition-all"
+                placeholder="Meeting Title"
+              />
+            ) : (
+              <p className="text-sm font-semibold text-foreground bg-background px-3 py-1.5 rounded-lg border border-card-border/60">
+                {meeting.title || "Untitled Meeting"}
+              </p>
+            )}
+          </div>
+
+          {/* Attendees */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+              Attendees
+            </label>
+            {isCreator ? (
+              <div className="space-y-2">
+                <div className="flex space-x-2">
+                  <input
+                    type="email"
+                    value={newMetaAttendee}
+                    onChange={(e) => setNewMetaAttendee(e.target.value)}
+                    placeholder="attendee@company.com"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddMetaAttendee();
+                      }
+                    }}
+                    className="flex-1 rounded-lg bg-background border border-card-border px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddMetaAttendee}
+                    className="px-3 py-1.5 rounded-lg bg-accent-primary hover:opacity-90 text-[10px] font-bold text-white transition-all cursor-pointer"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {metaAttendees.length === 0 ? (
+                  <p className="text-xs text-muted-text italic pl-1">No attendees added.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {metaAttendees.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-accent-secondary text-accent-primary border border-accent-primary/10 text-xs font-semibold"
+                      >
+                        <span>{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMetaAttendee(email)}
+                          disabled={isSavingMetadata}
+                          className="hover:text-rose-650 font-bold transition-colors cursor-pointer"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              meeting.attendees && meeting.attendees.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {meeting.attendees.map((email) => (
+                    <span
+                      key={email}
+                      className="inline-flex items-center px-2.5 py-1 rounded bg-background text-muted-text border border-card-border text-xs font-medium"
+                    >
+                      {email}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-text italic">No attendees list.</p>
+              )
+            )}
+          </div>
+
+          {/* Action button if Creator */}
+          {isCreator && (
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveMetadata}
+                disabled={isSavingMetadata || (metaTitle === (meeting.title || "") && JSON.stringify(metaAttendees) === JSON.stringify(meeting.attendees))}
+                className="cursor-pointer rounded-lg bg-accent-primary px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1.5"
+              >
+                {isSavingMetadata ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Metadata Changes</span>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const renderStatusCard = (title: string, description: string, actionButton?: React.ReactNode) => {
@@ -671,13 +850,13 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
         isExtracting
           ? "Extracting Intelligence"
           : isFailed
-          ? "Extraction Failed"
-          : "Intelligence Extraction Pending",
+            ? "Extraction Failed"
+            : "Intelligence Extraction Pending",
         isExtracting
           ? "AI is currently extracting action items, decisions, and summaries. This may take a few moments..."
           : isFailed
-          ? "An error occurred during AI intelligence extraction. You can retry the extraction process below."
-          : "Audio transcription and speaker mapping are complete. Start extracting meeting intelligence now.",
+            ? "An error occurred during AI intelligence extraction. You can retry the extraction process below."
+            : "Audio transcription and speaker mapping are complete. Start extracting meeting intelligence now.",
         isExtracting ? undefined : renderRecoveryAction()
       );
     }
@@ -776,21 +955,19 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
             <nav className="hidden lg:flex items-center space-x-4 border-l border-card-border pl-6">
               <Link
                 href="/dashboard"
-                className={`text-xs font-bold transition-all relative py-1 ${
-                  pathname === "/dashboard"
+                className={`text-xs font-bold transition-all relative py-1 ${pathname === "/dashboard"
                     ? "text-accent-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent-primary after:rounded-full"
                     : "text-muted-text hover:text-foreground"
-                }`}
+                  }`}
               >
                 Dashboard
               </Link>
               <Link
                 href="/upload"
-                className={`text-xs font-bold transition-all relative py-1 ${
-                  pathname === "/upload"
+                className={`text-xs font-bold transition-all relative py-1 ${pathname === "/upload"
                     ? "text-accent-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent-primary after:rounded-full"
                     : "text-muted-text hover:text-foreground"
-                }`}
+                  }`}
               >
                 Upload
               </Link>
@@ -848,7 +1025,7 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
                       <span>Approving...</span>
                     </>
                   ) : (
-                    <span>Proceed / Approve</span>
+                    <span>Approve</span>
                   )}
                 </button>
               </div>
@@ -858,15 +1035,19 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
             {!loadingMeeting && meeting && (
               <div className="flex items-center space-x-2">
                 <span className="text-xs text-muted-text uppercase font-semibold">Status:</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase ${
-                  meeting.status === "approved"
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase ${meeting.status === "approved"
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                     : meeting.status === "needs_review"
-                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                    : "bg-accent-secondary text-accent-primary border border-accent-primary/20"
-                }`}>
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                      : "bg-accent-secondary text-accent-primary border border-accent-primary/20"
+                  }`}>
                   {meeting.status.replace("_", " ")}
                 </span>
+                {meeting.speaker_mapping_mode === "automatic" && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 animate-fadeIn">
+                    Automatic Speaker Identification
+                  </span>
+                )}
               </div>
             )}
 
@@ -935,17 +1116,17 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
 
           {/* Right: Meeting Intelligence */}
           <div className="h-full flex flex-col min-h-[500px]">
+            {renderMetadataCard()}
             {renderIntelligencePanel()}
           </div>
         </main>
 
         {/* Floating Toast Notifications */}
         {toastMessage && (
-          <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-lg border backdrop-blur-md flex items-center space-x-3 animate-slideIn ${
-            toastType === "success"
+          <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-lg border backdrop-blur-md flex items-center space-x-3 animate-slideIn ${toastType === "success"
               ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
               : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
-          }`}>
+            }`}>
             {toastType === "success" ? (
               <svg className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -956,6 +1137,104 @@ export default function MeetingDetailsPage({ params }: MeetingDetailsPageProps) 
               </svg>
             )}
             <span className="text-sm font-medium text-foreground">{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Send Email Modal */}
+        {isEmailModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="w-full max-w-lg rounded-2xl border border-card-border bg-card-bg p-6 shadow-xl space-y-6 animate-slideIn text-left">
+              <div className="flex items-center justify-between border-b border-card-border pb-3">
+                <h3 className="text-lg font-bold text-foreground">Send Meeting Summary</h3>
+                <button
+                  onClick={() => setIsEmailModalOpen(false)}
+                  className="text-muted-text hover:text-foreground font-semibold text-lg cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+                    Recipients (Emails)
+                  </label>
+
+                  {/* Recipient addition */}
+                  <div className="flex space-x-2">
+                    <input
+                      type="email"
+                      value={newEmailRecipient}
+                      onChange={(e) => setNewEmailRecipient(e.target.value)}
+                      placeholder="recipient@company.com"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddEmailRecipient();
+                        }
+                      }}
+                      className="flex-1 rounded-lg bg-background border border-card-border px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddEmailRecipient}
+                      className="px-3 py-1.5 rounded-lg bg-accent-primary hover:opacity-90 text-[10px] font-bold text-white transition-all cursor-pointer"
+                    >
+                      Add Recipient
+                    </button>
+                  </div>
+
+                  {/* Recipient list */}
+                  {emailRecipients.length === 0 ? (
+                    <p className="text-xs text-rose-500 italic pl-1">Please add at least one recipient email.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1.5 border border-card-border/40 rounded-lg bg-background/50">
+                      {emailRecipients.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-accent-secondary text-accent-primary border border-accent-primary/10 text-xs font-semibold"
+                        >
+                          <span>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEmailRecipient(email)}
+                            className="hover:text-rose-650 transition-colors cursor-pointer font-bold"
+                          >
+                            &times;
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEmailModalOpen(false)}
+                  className="px-4 py-2 border border-card-border bg-card-bg text-xs font-bold text-muted-text hover:text-foreground hover:bg-border-subtle rounded-lg cursor-pointer transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={isSendingEmail || emailRecipients.length === 0}
+                  className="px-4 py-2 bg-accent-primary hover:opacity-95 text-xs font-bold text-white rounded-lg cursor-pointer shadow-md disabled:opacity-40 transition-all flex items-center space-x-1.5"
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <span className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <span>Send Summary</span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

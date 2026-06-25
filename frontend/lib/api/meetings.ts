@@ -117,6 +117,19 @@ export async function updateIntelligence(
   });
 }
 
+export async function updateMeetingMetadata(
+  id: string,
+  payload: { title: string; attendees: string[] }
+): Promise<MeetingDetail> {
+  return fetchJson<MeetingDetail>(`${API_BASE_URL}/meetings/${id}/metadata`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function approveMeeting(
   id: string
 ): Promise<{ message: string; approved_at?: string }> {

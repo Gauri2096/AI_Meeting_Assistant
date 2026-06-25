@@ -91,8 +91,10 @@ export default function SuccessPage({ params }: SuccessPageProps) {
       }
       if (meeting?.attendees) {
         meeting.attendees.forEach((att) => {
-          if (att.email) {
-            recipientsSet.add(att.email);
+          if (typeof att === "string" && att) {
+            recipientsSet.add(att);
+          } else if (att && (att as any).email) {
+            recipientsSet.add((att as any).email);
           }
         });
       }

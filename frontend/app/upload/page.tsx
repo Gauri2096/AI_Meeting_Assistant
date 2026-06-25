@@ -33,6 +33,36 @@ export default function UploadPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recorderKey, setRecorderKey] = useState<number>(0);
 
+  const [title, setTitle] = useState("");
+  const [attendees, setAttendees] = useState<string[]>([]);
+  const [speakerMappingMode, setSpeakerMappingMode] = useState<"manual" | "automatic">("manual");
+  const [newAttendeeEmail, setNewAttendeeEmail] = useState("");
+
+  const handleAddAttendee = () => {
+    const trimmed = newAttendeeEmail.trim().toLowerCase();
+    if (trimmed && !attendees.includes(trimmed) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setAttendees([...attendees, trimmed]);
+      setNewAttendeeEmail("");
+    }
+  };
+
+  const handleRemoveAttendee = (email: string) => {
+    setAttendees(attendees.filter((a) => a !== email));
+  };
+
+  // Sync title with files
+  useEffect(() => {
+    if (file && !title) {
+      setTitle(file.name.replace(/\.[^/.]+$/, ""));
+    }
+  }, [file, title]);
+
+  useEffect(() => {
+    if (recordedFile && !title) {
+      setTitle(`Recording_${new Date().toISOString().slice(0, 10)}`);
+    }
+  }, [recordedFile, title]);
+
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   // Polling logic when meetingId changes
@@ -91,6 +121,9 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", fileToUpload);
     formData.append("source", source);
+    formData.append("title", title || fileToUpload.name);
+    formData.append("attendees_json", JSON.stringify(attendees));
+    formData.append("speaker_mapping_mode", speakerMappingMode);
 
     try {
       const data = await uploadMeetingFile(formData);
@@ -293,6 +326,109 @@ export default function UploadPage() {
               </p>
             </div>
 
+            {/* Metadata Settings Section */}
+            <div className="mb-8 p-6 rounded-xl border border-card-border bg-background space-y-6">
+              <h3 className="text-base font-bold text-foreground border-b border-card-border pb-2">
+                Meeting Details
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Title */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+                    Meeting Title
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter meeting title..."
+                    className="w-full rounded-lg bg-card-bg border border-card-border px-3 py-2 text-sm text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary transition-all duration-200"
+                  />
+                </div>
+
+                {/* Speaker Mapping Mode */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+                    Speaker Identification Mode
+                  </label>
+                  <div className="flex space-x-6 pt-2">
+                    <label className="flex items-center space-x-2 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="radio"
+                        name="speakerMappingMode"
+                        value="manual"
+                        checked={speakerMappingMode === "manual"}
+                        onChange={() => setSpeakerMappingMode("manual")}
+                        className="text-accent-primary focus:ring-accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Manual Speaker Mapping</span>
+                    </label>
+                    <label className="flex items-center space-x-2 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="radio"
+                        name="speakerMappingMode"
+                        value="automatic"
+                        checked={speakerMappingMode === "automatic"}
+                        onChange={() => setSpeakerMappingMode("automatic")}
+                        className="text-accent-primary focus:ring-accent-primary h-3.5 w-3.5"
+                      />
+                      <span>Automatic</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendees List */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-muted-text uppercase tracking-wider">
+                  Attendees (Emails)
+                </label>
+                <div className="flex space-x-2 max-w-md">
+                  <input
+                    type="email"
+                    value={newAttendeeEmail}
+                    onChange={(e) => setNewAttendeeEmail(e.target.value)}
+                    placeholder="e.g. attendee@company.com"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddAttendee();
+                      }
+                    }}
+                    className="flex-1 rounded-lg bg-card-bg border border-card-border px-3 py-1.5 text-xs text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary transition-all duration-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAttendee}
+                    className="px-4 py-1.5 rounded-lg bg-accent-primary hover:opacity-90 text-xs font-bold text-white transition-all cursor-pointer shadow-sm"
+                  >
+                    Add Attendee
+                  </button>
+                </div>
+                
+                {attendees.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {attendees.map((email, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-accent-secondary text-accent-primary border border-accent-primary/10"
+                      >
+                        <span>{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttendee(email)}
+                          className="hover:text-rose-650 transition-colors cursor-pointer text-sm font-bold"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Layout grid containing Upload and Recording options */}
             <div className="grid grid-cols-1 md:grid-cols-11 gap-8 items-start">
               
@@ -309,7 +445,7 @@ export default function UploadPage() {
                     onDragLeave={handleDrag}
                     onDrop={handleDrop}
                     onClick={onBrowseClick}
-                    className={`relative flex min-h-60 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-300 ${
+                    className={`relative flex h-72 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all duration-300 ${
                       dragActive
                         ? "border-accent-primary bg-accent-secondary/50 shadow-md"
                         : "border-card-border bg-background hover:border-slate-400 dark:hover:border-slate-700"
@@ -550,13 +686,33 @@ export default function UploadPage() {
 
                 {/* Final Outcome Notifications */}
                 {status === "pending_review" && (
-                  <div className="mt-2 text-xs text-emerald-600 dark:text-emerald-455 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3">
-                    ✓ <strong>Success:</strong> Meeting analysis successfully completed and saved. It is ready for review.
+                  <div className="mt-2 flex flex-col space-y-3">
+                    <div className="text-xs text-emerald-600 dark:text-emerald-455 bg-emerald-500/5 border border-emerald-500/10 rounded-lg p-3">
+                      ✓ <strong>Success:</strong> Meeting analysis successfully completed and saved. It is ready for review.
+                    </div>
+                    {meetingId && (
+                      <Link
+                        href={`/meetings/${meetingId}`}
+                        className="inline-flex items-center justify-center cursor-pointer rounded-lg bg-accent-primary hover:opacity-95 py-2.5 px-4 text-xs font-bold text-white shadow-sm transition-all duration-200 text-center"
+                      >
+                        Go to Meeting Analysis
+                      </Link>
+                    )}
                   </div>
                 )}
                 {status === "needs_review" && (
-                  <div className="mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 border border-amber-500/15 rounded-lg p-3">
-                    ⚠ <strong>Attention Required:</strong> Meeting analysis is complete but flagged for manual human review due to low extraction confidence.
+                  <div className="mt-2 flex flex-col space-y-3">
+                    <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/5 border border-amber-500/15 rounded-lg p-3">
+                      ⚠ <strong>Attention Required:</strong> Meeting analysis is complete but flagged for manual human review due to low extraction confidence.
+                    </div>
+                    {meetingId && (
+                      <Link
+                        href={`/meetings/${meetingId}`}
+                        className="inline-flex items-center justify-center cursor-pointer rounded-lg bg-accent-primary hover:opacity-95 py-2.5 px-4 text-xs font-bold text-white shadow-sm transition-all duration-200 text-center"
+                      >
+                        Go to Meeting Analysis
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

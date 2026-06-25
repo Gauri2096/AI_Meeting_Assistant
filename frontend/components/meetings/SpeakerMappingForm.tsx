@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { SpeakerResponse, SpeakerDetails } from "@/types/speaker";
+import { SpeakerResponse } from "@/types/speaker";
 import SpeakerCard from "./SpeakerCard";
 
 interface SpeakerMappingFormProps {
   speakers: SpeakerResponse[];
-  onSubmit: (mapping: Record<string, SpeakerDetails>) => void;
+  onSubmit: (mapping: Record<string, string>) => void;
   isSubmitting: boolean;
 }
 
@@ -16,35 +16,25 @@ export default function SpeakerMappingForm({
   isSubmitting,
 }: SpeakerMappingFormProps) {
   // Initialize state with default speaker details
-  const [formValues, setFormValues] = useState<Record<string, SpeakerDetails>>(() => {
-    const initial: Record<string, SpeakerDetails> = {};
+  const [formValues, setFormValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
     speakers.forEach((sp) => {
-      initial[sp.speaker_label] = {
-        name: sp.current_name || "",
-        email: sp.current_email || "",
-        department: "",
-        role: "",
-      };
+      initial[sp.speaker_label] = sp.current_name || "";
     });
     return initial;
   });
 
-  const handleSpeakerChange = (label: string, details: SpeakerDetails) => {
+  const handleSpeakerChange = (label: string, name: string) => {
     setFormValues((prev) => ({
       ...prev,
-      [label]: details,
+      [label]: name,
     }));
   };
 
-  // Helper to validate email format
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  // Check validity: all speakers must have a non-empty name and a valid email format
+  // Check validity: all speakers must have a non-empty name
   const isFormValid = speakers.every((sp) => {
-    const val = formValues[sp.speaker_label];
-    return val && val.name.trim() !== "" && val.email.trim() !== "" && isValidEmail(val.email);
+    const name = formValues[sp.speaker_label];
+    return name && name.trim() !== "";
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -60,13 +50,8 @@ export default function SpeakerMappingForm({
           <SpeakerCard
             key={sp.speaker_label}
             speaker={sp}
-            value={formValues[sp.speaker_label] || { name: "", email: "", department: "", role: "" }}
-            onChange={(details) => handleSpeakerChange(sp.speaker_label, details)}
-            validationError={
-              formValues[sp.speaker_label]?.email && !isValidEmail(formValues[sp.speaker_label].email)
-                ? "Please enter a valid email address."
-                : undefined
-            }
+            value={formValues[sp.speaker_label] || ""}
+            onChange={(name) => handleSpeakerChange(sp.speaker_label, name)}
           />
         ))}
       </div>
