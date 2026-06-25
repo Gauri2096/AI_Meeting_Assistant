@@ -19,24 +19,24 @@ export default function TranscriptViewer({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <p className="text-sm text-slate-500">Loading transcript...</p>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-primary border-t-transparent" />
+        <p className="text-sm text-muted-text">Loading transcript...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl border border-rose-950/40 bg-rose-950/15 p-6 text-center text-sm text-rose-400">
-        <p>Failed to load transcript.</p>
-        <p className="text-xs mt-1 text-slate-500">{error}</p>
+      <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6 text-center text-sm text-rose-600 dark:text-rose-400">
+        <p className="font-bold">Failed to load transcript</p>
+        <p className="text-xs mt-1 text-muted-text">{error}</p>
       </div>
     );
   }
 
   if (!transcript) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-950/20 p-8 text-center text-slate-500 text-sm">
+      <div className="rounded-xl border border-card-border bg-background p-8 text-center text-muted-text text-sm">
         No transcript available.
       </div>
     );
@@ -54,12 +54,12 @@ export default function TranscriptViewer({
   );
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col h-full rounded-2xl border border-card-border bg-card-bg shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="p-4 border-b border-card-border bg-background/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-200">Transcript</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-bold text-foreground font-sans">Transcript</h2>
+          <p className="text-xs text-muted-text">
             {transcript.processed_text ? "Speaker-mapped diarized text" : "Raw transcript"}
           </p>
         </div>
@@ -71,10 +71,10 @@ export default function TranscriptViewer({
             placeholder="Search transcript..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-48 rounded-lg bg-slate-950 border border-slate-800 pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full sm:w-48 rounded-lg bg-background border border-card-border pl-8 pr-3 py-1.5 text-xs text-foreground placeholder-muted-text/50 focus:outline-none focus:ring-1 focus:ring-accent-primary"
           />
           <svg
-            className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-600"
+            className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-text"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -92,7 +92,7 @@ export default function TranscriptViewer({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[600px] scrollbar-thin">
         {filteredParagraphs.length === 0 ? (
-          <p className="text-sm text-slate-600 text-center py-8">
+          <p className="text-sm text-muted-text text-center py-8">
             {searchTerm ? "No matches found." : "Transcript is empty."}
           </p>
         ) : (
@@ -104,10 +104,10 @@ export default function TranscriptViewer({
 
               return (
                 <div key={idx} className="space-y-1 animate-fadeIn">
-                  <span className="text-xs font-bold text-indigo-400 tracking-wide">
+                  <span className="text-xs font-bold text-accent-primary tracking-wide">
                     {speakerName}
                   </span>
-                  <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/20 p-3 rounded-lg border border-slate-900/50">
+                  <p className="text-sm text-foreground leading-relaxed bg-background p-3 rounded-lg border border-card-border/60">
                     {restText}
                   </p>
                 </div>
@@ -117,7 +117,7 @@ export default function TranscriptViewer({
             return (
               <p
                 key={idx}
-                className="text-sm text-slate-300 leading-relaxed bg-slate-950/20 p-3 rounded-lg border border-slate-900/50 animate-fadeIn"
+                className="text-sm text-foreground leading-relaxed bg-background p-3 rounded-lg border border-card-border/60 animate-fadeIn"
               >
                 {p}
               </p>

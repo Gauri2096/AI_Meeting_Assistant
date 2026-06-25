@@ -24,6 +24,7 @@ export interface MeetingDetail {
   attendees: Attendee[];
   duration_seconds: number | null;
   webex_meeting_id: string | null;
+  can_edit?: boolean;
 }
 
 export interface MeetingListItem {
@@ -32,7 +33,8 @@ export interface MeetingListItem {
   status: MeetingStatus;
   source: string;
   created_at: string;
-  organiser_email: string;
+  organiser_email?: string;
+  can_edit: boolean;
 }
 
 export interface MeetingCreateResponse {

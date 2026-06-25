@@ -75,7 +75,7 @@ export default function SpeakerMappingForm({
         <button
           type="submit"
           disabled={!isFormValid || isSubmitting}
-          className="w-full md:w-auto cursor-pointer rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-900/30 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-indigo-900/50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-violet-600 disabled:hover:to-indigo-600"
+          className="w-full md:w-auto cursor-pointer rounded-xl bg-accent-primary hover:opacity-95 px-8 py-3 text-sm font-bold text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <span className="flex items-center justify-center space-x-2">

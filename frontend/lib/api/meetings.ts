@@ -1,4 +1,4 @@
-import { MeetingDetail, TranscriptResponse } from "@/types/meeting";
+import { MeetingDetail, TranscriptResponse, MeetingListItem } from "@/types/meeting";
 import { SpeakerResponse, SpeakerMappingRequest } from "@/types/speaker";
 import { MeetingIntelligence } from "@/types/intelligence";
 import { UserResponse } from "@/types/user";
@@ -106,7 +106,7 @@ export async function getIntelligence(id: string): Promise<MeetingIntelligence> 
 
 export async function updateIntelligence(
   id: string,
-  payload: Partial<MeetingIntelligence>
+  payload: Partial<MeetingIntelligence> & { title?: string }
 ): Promise<MeetingIntelligence> {
   return fetchJson<MeetingIntelligence>(`${API_BASE_URL}/meetings/${id}/intelligence`, {
     method: "PUT",
@@ -129,5 +129,45 @@ export async function uploadMeetingFile(formData: FormData): Promise<{ id: strin
   return fetchJson<{ id: string; status?: string }>(`${API_BASE_URL}/meetings/upload`, {
     method: "POST",
     body: formData,
+  });
+}
+
+export async function downloadMeetingPdf(id: string): Promise<Blob> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/meetings/${id}/pdf`, {
+    headers,
+  });
+  if (!res.ok) {
+    let errorDetail = "Failed to download PDF";
+    try {
+      const errorJson = await res.json();
+      errorDetail = errorJson.detail || errorJson.message || errorDetail;
+    } catch (_) { }
+    throw new Error(errorDetail);
+  }
+  return res.blob();
+}
+
+export async function sendMeetingEmail(id: string, recipients: string[]): Promise<{ message: string }> {
+  return fetchJson<{ message: string }>(`${API_BASE_URL}/meetings/${id}/send-email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ recipients }),
+  });
+}
+
+export async function listMeetings(): Promise<MeetingListItem[]> {
+  return fetchJson<MeetingListItem[]>(`${API_BASE_URL}/meetings`);
+}
+
+export async function retryTranscription(id: string): Promise<{ message: string }> {
+  return fetchJson<{ message: string }>(`${API_BASE_URL}/meetings/${id}/retry-transcription`, {
+    method: "POST",
   });
 }

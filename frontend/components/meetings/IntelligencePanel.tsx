@@ -25,25 +25,25 @@ export default function IntelligencePanel({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-        <p className="text-sm text-slate-500">Loading intelligence details...</p>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-primary border-t-transparent" />
+        <p className="text-sm text-muted-text">Loading intelligence details...</p>
       </div>
     );
   }
 
   if (error || !intelligence) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-md text-center h-full">
-        <div className="rounded-full bg-indigo-500/10 p-3 ring-4 ring-indigo-900/20 text-indigo-400 mb-4 animate-pulse">
+      <div className="flex flex-col items-center justify-center p-8 rounded-2xl border border-card-border bg-card-bg text-center h-full shadow-sm">
+        <div className="rounded-full bg-accent-secondary p-3 border border-accent-primary/20 text-accent-primary mb-4">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
-        <h3 className="text-lg font-bold text-slate-200 mb-2">Intelligence Loading Fallback</h3>
-        <p className="text-sm text-slate-400 max-w-sm">
+        <h3 className="text-lg font-bold text-foreground mb-2">Intelligence Loading Fallback</h3>
+        <p className="text-sm text-muted-text max-w-sm">
           {error ? `API status: ${error}` : "Intelligence is being prepared by the AI Model."}
         </p>
-        <div className="mt-6 p-4 rounded-xl border border-slate-800 bg-slate-950/40 text-left text-xs font-mono text-slate-500 max-w-md w-full">
+        <div className="mt-6 p-4 rounded-xl border border-card-border bg-background text-left text-xs font-mono text-muted-text max-w-md w-full">
           GET /meetings/[meetingId]/intelligence
         </div>
       </div>
@@ -88,24 +88,24 @@ export default function IntelligencePanel({
   };
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl overflow-hidden backdrop-blur-md">
+    <div className="flex flex-col h-full rounded-2xl border border-card-border bg-card-bg shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
+      <div className="p-4 border-b border-card-border bg-background/50 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-200">Meeting Intelligence</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-bold text-foreground font-sans">Meeting Intelligence</h2>
+          <p className="text-xs text-muted-text">
             {isEditable ? "Review and edit the extracted insights below" : "Read-only summary of intelligence"}
           </p>
         </div>
         {intelligence.confidence !== undefined && (
-          <div className="flex items-center space-x-1 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase">Confidence:</span>
+          <div className="flex items-center space-x-1 bg-background px-2 py-1 rounded-lg border border-card-border">
+            <span className="text-[10px] text-muted-text font-semibold uppercase">Confidence:</span>
             <span className={`text-[10px] font-bold ${
               intelligence.confidence >= 0.8
-                ? "text-emerald-400"
+                ? "text-emerald-600 dark:text-emerald-400"
                 : intelligence.confidence >= 0.5
-                ? "text-amber-400"
-                : "text-rose-400"
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-rose-600 dark:text-rose-400"
             }`}>
               {(intelligence.confidence * 100).toFixed(0)}%
             </span>
@@ -114,7 +114,7 @@ export default function IntelligencePanel({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 bg-slate-950/20 overflow-x-auto scrollbar-none">
+      <div className="flex border-b border-card-border bg-background/30 overflow-x-auto scrollbar-none">
         {(
           [
             { id: "summary", label: "Summary" },
@@ -130,8 +130,8 @@ export default function IntelligencePanel({
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-3 px-4 text-xs font-semibold border-b-2 transition-all duration-200 whitespace-nowrap cursor-pointer ${
               activeTab === tab.id
-                ? "border-indigo-500 text-slate-100 bg-slate-900/20"
-                : "border-transparent text-slate-500 hover:text-slate-300"
+                ? "border-accent-primary text-accent-primary bg-background/50"
+                : "border-transparent text-muted-text hover:text-foreground"
             }`}
           >
             {tab.label}
@@ -145,17 +145,17 @@ export default function IntelligencePanel({
         {/* SUMMARY TAB */}
         {activeTab === "summary" && (
           <div className="space-y-4 animate-fadeIn">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Executive Summary</h3>
+            <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Executive Summary</h3>
             {isEditable ? (
               <textarea
                 value={intelligence.summary}
                 onChange={(e) => updateSummary(e.target.value)}
                 rows={10}
-                className="w-full rounded-xl bg-slate-950 border border-slate-800 p-4 text-sm text-slate-300 leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 resize-y"
+                className="w-full rounded-xl bg-background border border-card-border p-4 text-sm text-foreground leading-relaxed focus:outline-none focus:ring-1 focus:ring-accent-primary focus:border-accent-primary transition-all duration-200 resize-y"
                 placeholder="Enter executive summary..."
               />
             ) : (
-              <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/20 p-4 rounded-xl border border-slate-900/50 whitespace-pre-wrap">
+              <p className="text-sm text-foreground leading-relaxed bg-background p-4 rounded-xl border border-card-border/60 whitespace-pre-wrap">
                 {intelligence.summary || "No summary generated."}
               </p>
             )}
@@ -166,12 +166,12 @@ export default function IntelligencePanel({
         {activeTab === "topics" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Topics Discussed</h3>
+              <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Topics Discussed</h3>
               {isEditable && (
                 <button
                   type="button"
                   onClick={() => updateTopics([...(intelligence.topics_discussed || []), { title: "", discussion: "" }])}
-                  className="flex items-center space-x-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-xs font-semibold text-accent-primary hover:opacity-90 cursor-pointer"
                 >
                   <span>+ Add Topic</span>
                 </button>
@@ -179,11 +179,11 @@ export default function IntelligencePanel({
             </div>
 
             {!intelligence.topics_discussed || intelligence.topics_discussed.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No topics discussed identified.</p>
+              <p className="text-sm text-muted-text italic">No topics discussed identified.</p>
             ) : (
               <div className="space-y-4">
                 {intelligence.topics_discussed.map((topic, idx) => (
-                  <div key={idx} className="relative bg-slate-950/20 border border-slate-900 p-4 rounded-xl space-y-3 group">
+                  <div key={idx} className="relative bg-background border border-card-border p-4 rounded-xl space-y-3 group">
                     {isEditable && (
                       <button
                         type="button"
@@ -192,7 +192,7 @@ export default function IntelligencePanel({
                           updated.splice(idx, 1);
                           updateTopics(updated);
                         }}
-                        className="absolute top-3 right-3 text-slate-600 hover:text-rose-400 transition-colors cursor-pointer"
+                        className="absolute top-3 right-3 text-muted-text hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                         title="Remove Topic"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -204,7 +204,7 @@ export default function IntelligencePanel({
                     {isEditable ? (
                       <div className="space-y-3 pr-6">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Topic Title</label>
+                          <label className="block text-[10px] font-bold text-muted-text uppercase tracking-wider mb-1">Topic Title</label>
                           <input
                             type="text"
                             value={topic.title}
@@ -214,11 +214,11 @@ export default function IntelligencePanel({
                               updateTopics(updated);
                             }}
                             placeholder="Topic Title"
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full rounded-lg bg-background border border-card-border px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Discussion Details</label>
+                          <label className="block text-[10px] font-bold text-muted-text uppercase tracking-wider mb-1">Discussion Details</label>
                           <textarea
                             value={topic.discussion}
                             onChange={(e) => {
@@ -228,14 +228,14 @@ export default function IntelligencePanel({
                             }}
                             placeholder="Enter discussion details..."
                             rows={3}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full rounded-lg bg-background border border-card-border p-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                           />
                         </div>
                       </div>
                     ) : (
                       <>
-                        <h4 className="text-sm font-bold text-slate-200">{topic.title}</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">{topic.discussion}</p>
+                        <h4 className="text-sm font-bold text-foreground">{topic.title}</h4>
+                        <p className="text-xs text-muted-text leading-relaxed">{topic.discussion}</p>
                       </>
                     )}
                   </div>
@@ -249,12 +249,12 @@ export default function IntelligencePanel({
         {activeTab === "decisions" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Decisions Made</h3>
+              <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Decisions Made</h3>
               {isEditable && (
                 <button
                   type="button"
                   onClick={() => updateDecisions([...(intelligence.decisions || []), ""])}
-                  className="flex items-center space-x-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-xs font-semibold text-accent-primary hover:opacity-90 cursor-pointer"
                 >
                   <span>+ Add Decision</span>
                 </button>
@@ -262,27 +262,27 @@ export default function IntelligencePanel({
             </div>
 
             {!intelligence.decisions || intelligence.decisions.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No decisions identified.</p>
+              <p className="text-sm text-muted-text italic">No decisions identified.</p>
             ) : (
               <ul className="space-y-2.5">
                 {intelligence.decisions.map((dec, idx) => (
-                  <li key={idx} className="flex items-start space-x-3 bg-slate-950/20 border border-slate-900 p-3.5 rounded-xl relative group">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400">
+                  <li key={idx} className="flex items-start space-x-3 bg-background border border-card-border p-3.5 rounded-xl relative group">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-secondary border border-accent-primary/20 text-xs font-bold text-accent-primary">
                       {idx + 1}
                     </span>
                     
                     {isEditable ? (
                       <div className="flex-1 flex items-center space-x-2 pr-6">
                         <input
-                          type="text"
-                          value={dec}
-                          onChange={(e) => {
-                            const updated = [...intelligence.decisions];
-                            updated[idx] = e.target.value;
-                            updateDecisions(updated);
-                          }}
-                          placeholder="Enter decision..."
-                          className="flex-1 rounded-lg bg-slate-950 border border-slate-800 px-3 py-1 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                           type="text"
+                           value={dec}
+                           onChange={(e) => {
+                             const updated = [...intelligence.decisions];
+                             updated[idx] = e.target.value;
+                             updateDecisions(updated);
+                           }}
+                           placeholder="Enter decision..."
+                           className="flex-1 rounded-lg bg-background border border-card-border px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                         />
                         <button
                           type="button"
@@ -291,7 +291,7 @@ export default function IntelligencePanel({
                             updated.splice(idx, 1);
                             updateDecisions(updated);
                           }}
-                          className="text-slate-600 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="text-muted-text hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                           title="Remove Decision"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -300,7 +300,7 @@ export default function IntelligencePanel({
                         </button>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-300">{dec}</span>
+                      <span className="text-sm text-foreground">{dec}</span>
                     )}
                   </li>
                 ))}
@@ -313,12 +313,12 @@ export default function IntelligencePanel({
         {activeTab === "actionItems" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Action Items</h3>
+              <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Action Items</h3>
               {isEditable && (
                 <button
                   type="button"
                   onClick={() => updateActionItems([...(intelligence.action_items || []), { description: "", owner: "", deadline_mentioned: "" }])}
-                  className="flex items-center space-x-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-xs font-semibold text-accent-primary hover:opacity-90 cursor-pointer"
                 >
                   <span>+ Add Action Item</span>
                 </button>
@@ -326,12 +326,12 @@ export default function IntelligencePanel({
             </div>
 
             {!intelligence.action_items || intelligence.action_items.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No action items identified.</p>
+              <p className="text-sm text-muted-text italic">No action items identified.</p>
             ) : (
               <div className="space-y-3">
                 {intelligence.action_items.map((item, idx) => (
-                  <div key={idx} className="flex items-start space-x-3 bg-slate-950/20 border border-slate-900 p-4 rounded-xl relative group">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-850 border border-slate-700 text-indigo-500 mt-0.5">
+                  <div key={idx} className="flex items-start space-x-3 bg-background border border-card-border p-4 rounded-xl relative group">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent-secondary border border-card-border text-accent-primary mt-0.5">
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
@@ -348,11 +348,11 @@ export default function IntelligencePanel({
                           }}
                           placeholder="Action item description..."
                           rows={2}
-                          className="w-full rounded-lg bg-slate-950 border border-slate-800 p-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full rounded-lg bg-background border border-card-border p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                         />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Owner</label>
+                            <label className="block text-[9px] font-semibold text-muted-text uppercase tracking-wider mb-1">Owner</label>
                             <input
                               type="text"
                               value={item.owner || ""}
@@ -362,11 +362,11 @@ export default function IntelligencePanel({
                                 updateActionItems(updated);
                               }}
                               placeholder="e.g. Sarah Conners"
-                              className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-1 text-xs text-slate-200 focus:outline-none"
+                              className="w-full rounded-lg bg-background border border-card-border px-3 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                             />
                           </div>
                           <div>
-                            <label className="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Deadline Mentioned</label>
+                            <label className="block text-[9px] font-semibold text-muted-text uppercase tracking-wider mb-1">Deadline Mentioned</label>
                             <input
                               type="text"
                               value={item.deadline_mentioned || ""}
@@ -376,7 +376,7 @@ export default function IntelligencePanel({
                                 updateActionItems(updated);
                               }}
                               placeholder="e.g. End of next week"
-                              className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-1 text-xs text-slate-200 focus:outline-none"
+                              className="w-full rounded-lg bg-background border border-card-border px-3 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                             />
                           </div>
                         </div>
@@ -388,7 +388,7 @@ export default function IntelligencePanel({
                             updated.splice(idx, 1);
                             updateActionItems(updated);
                           }}
-                          className="absolute top-4 right-4 text-slate-600 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="absolute top-4 right-4 text-muted-text hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                           title="Remove Action Item"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -398,15 +398,15 @@ export default function IntelligencePanel({
                       </div>
                     ) : (
                       <div className="flex-1 space-y-1">
-                        <p className="text-sm text-slate-300">{item.description}</p>
+                        <p className="text-sm text-foreground">{item.description}</p>
                         <div className="flex flex-wrap gap-2 pt-1.5">
                           {item.owner && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-accent-secondary text-accent-primary border border-accent-primary/10">
                               Owner: {item.owner}
                             </span>
                           )}
                           {item.deadline_mentioned && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-background text-muted-text border border-card-border">
                               Deadline: {item.deadline_mentioned}
                             </span>
                           )}
@@ -424,12 +424,12 @@ export default function IntelligencePanel({
         {activeTab === "risks" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Risks and Concerns</h3>
+              <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Risks and Concerns</h3>
               {isEditable && (
                 <button
                   type="button"
                   onClick={() => updateRisks([...(intelligence.risks_and_concerns || []), ""])}
-                  className="flex items-center space-x-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-xs font-semibold text-accent-primary hover:opacity-90 cursor-pointer"
                 >
                   <span>+ Add Risk</span>
                 </button>
@@ -437,12 +437,12 @@ export default function IntelligencePanel({
             </div>
 
             {!intelligence.risks_and_concerns || intelligence.risks_and_concerns.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No risks or concerns identified.</p>
+              <p className="text-sm text-muted-text italic">No risks or concerns identified.</p>
             ) : (
               <ul className="space-y-3">
                 {intelligence.risks_and_concerns.map((risk, idx) => (
-                  <li key={idx} className="flex items-start space-x-3 bg-rose-500/5 border border-rose-950/30 p-3.5 rounded-xl relative group">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 border border-rose-500/25 text-xs text-rose-400 font-extrabold font-mono">
+                  <li key={idx} className="flex items-start space-x-3 bg-rose-500/5 dark:bg-rose-950/10 border border-rose-500/25 p-3.5 rounded-xl relative group">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-extrabold font-mono">
                       !
                     </span>
 
@@ -457,7 +457,7 @@ export default function IntelligencePanel({
                             updateRisks(updated);
                           }}
                           placeholder="Enter risk/concern..."
-                          className="flex-1 rounded-lg bg-slate-950 border border-slate-800 px-3 py-1 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="flex-1 rounded-lg bg-background border border-card-border px-3 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                         />
                         <button
                           type="button"
@@ -466,7 +466,7 @@ export default function IntelligencePanel({
                             updated.splice(idx, 1);
                             updateRisks(updated);
                           }}
-                          className="text-slate-600 hover:text-rose-400 transition-colors cursor-pointer"
+                          className="text-muted-text hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                           title="Remove Risk"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -475,7 +475,7 @@ export default function IntelligencePanel({
                         </button>
                       </div>
                     ) : (
-                      <span className="text-sm text-slate-300">{risk}</span>
+                      <span className="text-sm text-foreground">{risk}</span>
                     )}
                   </li>
                 ))}
@@ -488,12 +488,12 @@ export default function IntelligencePanel({
         {activeTab === "quotes" && (
           <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Notable Quotes</h3>
+              <h3 className="text-sm font-bold text-muted-text uppercase tracking-wider">Notable Quotes</h3>
               {isEditable && (
                 <button
                   type="button"
                   onClick={() => updateQuotes([...(intelligence.notable_quotes || []), { speaker: "", quote: "" }])}
-                  className="flex items-center space-x-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-xs font-semibold text-accent-primary hover:opacity-90 cursor-pointer"
                 >
                   <span>+ Add Quote</span>
                 </button>
@@ -501,11 +501,11 @@ export default function IntelligencePanel({
             </div>
 
             {!intelligence.notable_quotes || intelligence.notable_quotes.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No notable quotes identified.</p>
+              <p className="text-sm text-muted-text italic">No notable quotes identified.</p>
             ) : (
               <div className="space-y-3">
                 {intelligence.notable_quotes.map((quote, idx) => (
-                  <div key={idx} className="bg-slate-950/20 border border-slate-900 p-4 rounded-xl space-y-2 relative group">
+                  <div key={idx} className="bg-background border border-card-border p-4 rounded-xl space-y-2 relative group">
                     
                     {isEditable && (
                       <button
@@ -515,7 +515,7 @@ export default function IntelligencePanel({
                           updated.splice(idx, 1);
                           updateQuotes(updated);
                         }}
-                        className="absolute top-4 right-4 text-slate-600 hover:text-rose-400 transition-colors cursor-pointer"
+                        className="absolute top-4 right-4 text-muted-text hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                         title="Remove Quote"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -527,7 +527,7 @@ export default function IntelligencePanel({
                     {isEditable ? (
                       <div className="space-y-3 pr-6">
                         <div>
-                          <label className="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Speaker</label>
+                          <label className="block text-[9px] font-semibold text-muted-text uppercase tracking-wider mb-1">Speaker</label>
                           <input
                             type="text"
                             value={quote.speaker}
@@ -537,11 +537,11 @@ export default function IntelligencePanel({
                               updateQuotes(updated);
                             }}
                             placeholder="e.g. Mike"
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-1 text-xs text-slate-200 focus:outline-none"
+                            className="w-full rounded-lg bg-background border border-card-border px-3 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                           />
                         </div>
                         <div>
-                          <label className="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Quote</label>
+                          <label className="block text-[9px] font-semibold text-muted-text uppercase tracking-wider mb-1">Quote</label>
                           <textarea
                             value={quote.quote}
                             onChange={(e) => {
@@ -551,16 +551,16 @@ export default function IntelligencePanel({
                             }}
                             placeholder="Enter quote..."
                             rows={2}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-800 p-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="w-full rounded-lg bg-background border border-card-border p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent-primary"
                           />
                         </div>
                       </div>
                     ) : (
                       <>
-                        <p className="text-sm italic text-slate-300">"{quote.quote}"</p>
+                        <p className="text-sm italic text-foreground">"{quote.quote}"</p>
                         <div className="flex items-center space-x-1.5">
-                          <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                          <span className="text-xs font-semibold text-slate-400">— {quote.speaker}</span>
+                          <div className="h-1.5 w-1.5 rounded-full bg-accent-primary" />
+                          <span className="text-xs font-semibold text-muted-text">— {quote.speaker}</span>
                         </div>
                       </>
                     )}

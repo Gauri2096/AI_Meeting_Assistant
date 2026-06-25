@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-nav-bg: var(--nav-bg);
+  --color-nav-border: var(--nav-border);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-highlight: var(--accent-highlight);
+  --color-muted-text: var(--muted-text);
+  --color-border-subtle: var(--border-subtle);
+  
+  --font-sans: var(--font-geist-sans), "Inter", "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light Theme Variables (Default) */
+:root {
+  --background: #f8fafc; /* Soft off-white / light slate gray background */
+  --foreground: #0f172a; /* Slate 900 for dark readable text */
+  --card-bg: #ffffff; /* Pure white card background */
+  --card-border: #e2e8f0; /* Slate 200 border */
+  --nav-bg: #ffffff; /* White navbar background */
+  --nav-border: #f1f5f9; /* Slate 100 navbar border */
+  --accent-primary: #0f4c81; /* Deep Corporate Navy Blue */
+  --accent-secondary: #f1f5f9; /* Slate 100 muted gray */
+  --accent-highlight: #d97706; /* Muted gold / amber 600 */
+  --muted-text: #64748b; /* Slate 500 */
+  --border-subtle: #f1f5f9; /* Slate 100 */
+}
+
+/* Dark Theme Variables */
+:root.dark {
+  --background: #0f1115; /* Deep Charcoal slate */
+  --foreground: #f1f5f9; /* Slate 100 text */
+  --card-bg: #161a22; /* Elevated Graphite surface */
+  --card-border: #222936; /* Elevated Slate border */
+  --nav-bg: #12151b; /* Graphite navbar background */
+  --nav-border: #1a1f29; /* Navbar border */
+  --accent-primary: #3b82f6; /* Slate/Stripe Royal Blue */
+  --accent-secondary: #1a2230; /* Dark muted blue */
+  --accent-highlight: #eab308; /* Yellow 500 */
+  --muted-text: #94a3b8; /* Slate 400 */
+  --border-subtle: #1e293b; /* Slate 800 */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Inter", "Segoe UI", sans-serif;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Custom scrollbar adjustments for clean dashboard look */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-text);
 }

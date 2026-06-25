@@ -112,30 +112,30 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-md max-w-sm w-full mx-auto transition-all duration-300">
+    <div className="flex flex-col items-center justify-center p-6 bg-card-bg border border-card-border rounded-2xl shadow-sm max-w-sm w-full mx-auto transition-all duration-300">
       <div className="mb-4 text-center">
-        <h3 className="text-lg font-semibold text-slate-200">Voice Recorder</h3>
-        <p className="text-xs text-slate-500 mt-1">Record and upload audio directly</p>
+        <h3 className="text-lg font-semibold text-foreground font-sans">Voice Recorder</h3>
+        <p className="text-xs text-muted-text mt-1">Record and upload audio directly</p>
       </div>
 
       {/* Recording Status and Timer */}
       <div className="flex flex-col items-center justify-center h-24 mb-6">
         {isRecording ? (
           <div className="flex flex-col items-center space-y-2 animate-fadeIn">
-            <div className="flex items-center space-x-2 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20">
-              <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-semibold text-red-400 tracking-wider uppercase">Recording...</span>
+            <div className="flex items-center space-x-2 bg-rose-500/10 px-3 py-1.5 rounded-full border border-rose-500/20">
+              <div className="w-4 h-4 rounded-full bg-rose-600 animate-pulse" />
+              <span className="text-xs font-semibold text-rose-600 dark:text-rose-455 tracking-wider uppercase">Recording...</span>
             </div>
-            <span className="text-3xl font-mono font-bold text-white tracking-wider">
+            <span className="text-3xl font-mono font-bold text-foreground tracking-wider">
               {formatDuration(durationSeconds)}
             </span>
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-1">
-            <span className="text-sm text-slate-400">Ready to Record</span>
+            <span className="text-sm text-muted-text">Ready to Record</span>
             {audioBlob && (
-              <span className="text-xs text-emerald-400 flex items-center space-x-1">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <span className="text-xs text-emerald-600 dark:text-emerald-450 flex items-center space-x-1">
+                <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
                 <span>Recording captured successfully</span>
@@ -151,7 +151,7 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
           <button
             type="button"
             onClick={startRecording}
-            className="flex-1 py-3 px-4 rounded-xl font-medium text-sm text-white bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-indigo-900/20 flex items-center justify-center space-x-2 cursor-pointer"
+            className="flex-1 py-3 px-4 rounded-xl font-medium text-sm text-white bg-accent-primary hover:opacity-95 active:scale-[0.98] transition-all duration-200 shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -162,7 +162,7 @@ export default function AudioRecorder({ onRecordingComplete }: AudioRecorderProp
           <button
             type="button"
             onClick={stopRecording}
-            className="flex-1 py-3 px-4 rounded-xl font-medium text-sm text-white bg-rose-600 hover:bg-rose-500 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-rose-900/20 flex items-center justify-center space-x-2 cursor-pointer"
+            className="flex-1 py-3 px-4 rounded-xl font-medium text-sm text-white bg-rose-600 hover:bg-rose-500 active:scale-[0.98] transition-all duration-200 shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
