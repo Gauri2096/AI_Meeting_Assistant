@@ -9,15 +9,13 @@ def build_processed_text(
 
         speaker_label = segment["speaker"]
 
-        metadata = mappings.get(
-            speaker_label,
-            {},
-        )
-
-        speaker_name = (
-            metadata.get("name")
-            or speaker_label
-        )
+        val = mappings.get(speaker_label)
+        if isinstance(val, dict):
+            speaker_name = val.get("name") or speaker_label
+        elif isinstance(val, str):
+            speaker_name = val
+        else:
+            speaker_name = speaker_label
 
         lines.append(
             f"{speaker_name}: {segment['text']}"

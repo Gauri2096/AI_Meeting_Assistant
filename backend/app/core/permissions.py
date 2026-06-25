@@ -10,10 +10,16 @@ def can_view_meeting(
 ) -> bool:
 
     attendees = meeting.attendees or []
+    emails = []
+    for attendee in attendees:
+        if isinstance(attendee, str):
+            emails.append(attendee)
+        elif isinstance(attendee, dict) and "email" in attendee:
+            emails.append(attendee["email"])
 
     return (
         meeting.created_by_user_id == user.id
-        or user.email in attendees
+        or user.email in emails
     )
 
 

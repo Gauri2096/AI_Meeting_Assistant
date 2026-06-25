@@ -10,7 +10,7 @@ class SpeakerDetails(BaseModel):
 
 
 class SpeakerMappingRequest(BaseModel):
-    speaker_map: Dict[str, SpeakerDetails]
+    speaker_map: Dict[str, str]
 
 
 class SpeakerResponse(BaseModel):

@@ -33,6 +33,7 @@ from app.schemas.meeting import (
     MeetingCreateResponse,
     MeetingDetail,
     MeetingListItem,
+    MeetingMetadataUpdate,
 )
 from app.services.transcription.transcription_service import (
     get_transcription_service,
@@ -358,15 +359,35 @@ def process_transcription(
             meeting.duration_seconds = int(
                 result["duration"]
             )
-            meeting.status = "pending_speaker_mapping"
-            print(f"[API ROUTE process_transcription] Meeting status updated to 'pending_speaker_mapping'.")
+            if meeting.speaker_mapping_mode == "automatic":
+                # Create automatic identity mapping
+                speaker_metadata = {}
+                for segment in result["segments"]:
+                    speaker_label = segment["speaker"]
+                    speaker_metadata[speaker_label] = speaker_label
+                
+                transcript.speaker_metadata = speaker_metadata
+                transcript.processed_text = build_processed_text(
+                    result["segments"],
+                    speaker_metadata
+                )
+                meeting.status = "extracting"
+                db.commit()
+                print(f"[API ROUTE process_transcription] Automatic mode: generated identity mapping and proceeding directly to extraction.")
+                
+                # Proceed to intelligence extraction
+                process_transcript_only(
+                    meeting_id=str(meeting.id),
+                    transcript_text=transcript.processed_text,
+                    speaker_map=transcript.speaker_map,
+                )
+            else:
+                meeting.status = "pending_speaker_mapping"
+                db.commit()
+                print(f"[API ROUTE process_transcription] Manual mode: meeting status updated to 'pending_speaker_mapping'.")
         else:
             print(f"[API ROUTE process_transcription] WARNING: Meeting {meeting_id} not found in DB.")
-        
-        db.commit()
-        logger.info(
-            f"Meeting {meeting.id} waiting for speaker mapping"
-        )
+            db.commit()
 
         return
 
@@ -398,11 +419,12 @@ async def upload_meeting(
     file: UploadFile = File(...),
     title: str | None = Form(None),
     attendees_json: str = Form("[]"),
+    speaker_mapping_mode: str = Form("manual"),
     source: str = Form("upload"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    print(f"[API ROUTE /upload] Request by user: {current_user.email}, Title: {title}, Filename: {file.filename}")
+    print(f"[API ROUTE /upload] Request by user: {current_user.email}, Title: {title}, Filename: {file.filename}, Mode: {speaker_mapping_mode}")
     if not (
         file.content_type.startswith("audio/")
         or file.content_type.startswith("video/")
@@ -428,6 +450,7 @@ async def upload_meeting(
         organiser_email=current_user.email,
         created_by_user_id=current_user.id,
         attendees=attendees,
+        speaker_mapping_mode=speaker_mapping_mode,
         status="processing",
     )
     db.add(meeting)
@@ -528,7 +551,70 @@ def get_meeting(
     )
 
     print(f"[API ROUTE /{meeting_id}] Returning details for meeting '{meeting.title}' (Status: {meeting.status}).")
-    return meeting
+    return {
+        "id": meeting.id,
+        "title": meeting.title,
+        "status": meeting.status,
+        "source": meeting.source,
+        "created_at": meeting.created_at,
+        "organiser_email": meeting.organiser_email,
+        "attendees": meeting.attendees,
+        "duration_seconds": meeting.duration_seconds,
+        "webex_meeting_id": meeting.webex_meeting_id,
+        "speaker_mapping_mode": meeting.speaker_mapping_mode,
+        "created_by_user_id": meeting.created_by_user_id,
+        "can_edit": meeting.created_by_user_id == current_user.id,
+    }
+
+
+@router.put(
+    "/{meeting_id}/metadata",
+    response_model=MeetingDetail
+)
+def update_meeting_metadata(
+    meeting_id: UUID,
+    payload: MeetingMetadataUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    print(f"[API ROUTE /{meeting_id}/metadata] Update metadata requested by user: {current_user.email}")
+    meeting = (
+        db.query(Meeting)
+        .filter(Meeting.id == meeting_id)
+        .first()
+    )
+
+    if not meeting:
+        print(f"[API ROUTE /{meeting_id}/metadata] ERROR: Meeting not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    check_meeting_edit_access(meeting, current_user)
+
+    meeting.title = payload.title
+    meeting.attendees = payload.attendees
+
+    db.commit()
+    db.refresh(meeting)
+
+    print(f"[API ROUTE /{meeting_id}/metadata] Metadata successfully updated for meeting '{meeting.title}'.")
+
+    return {
+        "id": meeting.id,
+        "title": meeting.title,
+        "status": meeting.status,
+        "source": meeting.source,
+        "created_at": meeting.created_at,
+        "organiser_email": meeting.organiser_email,
+        "attendees": meeting.attendees,
+        "duration_seconds": meeting.duration_seconds,
+        "webex_meeting_id": meeting.webex_meeting_id,
+        "speaker_mapping_mode": meeting.speaker_mapping_mode,
+        "created_by_user_id": meeting.created_by_user_id,
+        "can_edit": True,
+    }
 
 
 @router.get("/{meeting_id}/transcript")
@@ -618,17 +704,23 @@ def get_speakers(
 
         seen.add(label)
 
-        mapped = metadata.get(
-            label,
-            {},
-        )
+        mapped = metadata.get(label)
+        if isinstance(mapped, dict):
+            current_name = mapped.get("name")
+            current_email = mapped.get("email")
+        elif isinstance(mapped, str):
+            current_name = mapped
+            current_email = None
+        else:
+            current_name = None
+            current_email = None
 
         speakers.append(
             {
                 "speaker_label": label,
                 "sample_quote": segment["text"],
-                "current_name": mapped.get("name"),
-                "current_email": mapped.get("email"),
+                "current_name": current_name,
+                "current_email": current_email,
             }
         )
     check_meeting_access(
@@ -685,11 +777,7 @@ def update_speakers(
         or {}
     )
 
-    speaker_metadata = {
-        label: info.model_dump()
-        for label, info
-        in payload.speaker_map.items()
-    }
+    speaker_metadata = payload.speaker_map
 
     transcript.speaker_metadata = (
         speaker_metadata
@@ -701,19 +789,6 @@ def update_speakers(
             speaker_metadata,
         )
     )
-
-    meeting.attendees = [
-        {
-            "name": value["name"],
-            "email": value["email"],
-            "department": value.get(
-                "department"
-            ),
-            "role": value.get("role"),
-        }
-        for value
-        in speaker_metadata.values()
-    ]
 
     meeting.status = "extracting"
 

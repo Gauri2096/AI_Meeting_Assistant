@@ -44,3 +44,9 @@ class Meeting(Base):
         ForeignKey("users.id"),
         nullable=True,
     )
+
+    speaker_mapping_mode = Column(
+        String,
+        nullable=False,
+        server_default="manual",
+    )
