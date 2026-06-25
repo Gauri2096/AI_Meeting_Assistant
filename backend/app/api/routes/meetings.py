@@ -10,11 +10,16 @@ from fastapi import (
     Form,
     HTTPException,
     UploadFile,
+    Body,
 )
-import logging
 
+import logging
+from fastapi.responses import FileResponse
 logger = logging.getLogger(__name__)
 
+from app.services.pdf_service import generate_meeting_pdf
+from app.schemas.email import SendReportRequest
+from app.services.email.email_service import send_meeting_report_email
 from app.core.config import get_settings
 settings=get_settings()
 from sqlalchemy.orm import Session
@@ -54,12 +59,13 @@ from app.core.audit import log_action
 from app.schemas.intelligence import (
     IntelligenceUpdate,
     IntelligenceResponse,
+    IntelligenceViewResponse
 )
 from pydantic import BaseModel
 from app.core.auth import get_current_user
 from app.models.user import User
 from app.core.permissions import (
-    check_meeting_access,
+    check_meeting_access, check_meeting_edit_access
 )
 
 class TranscriptTestRequest(BaseModel):
@@ -71,6 +77,7 @@ def process_meeting(
     meeting_id: str,
     file_path: str,
 ):
+    print(f"[API ROUTE process_meeting] Background task triggered. Meeting ID: {meeting_id}, File: {file_path}")
     db = SessionLocal()
 
     try:
@@ -85,6 +92,7 @@ def process_meeting(
         )
 
         if not meeting:
+            print(f"[API ROUTE process_meeting] ERROR: Meeting {meeting_id} not found in DB.")
             raise ValueError(
                 f"Meeting not found: {meeting_id}"
             )
@@ -93,12 +101,14 @@ def process_meeting(
         # Transcription
         # --------------------------------------------------
         logger.info("Starting transcription")
+        print(f"[API ROUTE process_meeting] Starting transcription service for meeting '{meeting.title}'...")
         service = get_transcription_service()
 
         transcription_result = service.transcribe(
             file_path
         )
 
+        print(f"[API ROUTE process_meeting] Transcription complete. Saving raw transcript...")
         transcript = Transcript(
             meeting_id=meeting.id,
             raw_text=transcription_result["full_text"],
@@ -121,6 +131,7 @@ def process_meeting(
         # Extraction Agent
         # --------------------------------------------------
         logger.info("Starting extraction agent")
+        print(f"[API ROUTE process_meeting] Transcript saved. Triggering Extraction Agent...")
         agent_result = run_extraction_agent(
             meeting_id=str(meeting.id),
             transcript_text=transcription_result["full_text"],
@@ -133,6 +144,7 @@ def process_meeting(
         # Save Intelligence
         # --------------------------------------------------
         logger.info("Saving intelligence")
+        print(f"[API ROUTE process_meeting] Extraction complete. Saving intelligence output...")
         intelligence = MeetingIntelligence(
             meeting_id=meeting.id,
 
@@ -175,14 +187,18 @@ def process_meeting(
         logger.info("Updating meeting status")
         if agent_result["needs_human_review"]:
             meeting.status = "needs_review"
+            print(f"[API ROUTE process_meeting] Meeting marked as 'needs_review' (confidence: {extraction['confidence']})")
         else:
             meeting.status = "pending_review"
+            print(f"[API ROUTE process_meeting] Meeting marked as 'pending_review' (confidence: {extraction['confidence']})")
 
         db.commit()
         logger.info( f"Meeting {meeting.id} processed successfully")
+        print(f"[API ROUTE process_meeting] Meeting {meeting.id} processing successfully completed.")
         
     except Exception as e:
 
+        print(f"[API ROUTE process_meeting] ERROR encountered: {str(e)}")
         db.rollback()
 
         try:
@@ -195,13 +211,11 @@ def process_meeting(
             if meeting:
                 meeting.status = "failed"
                 db.commit()
+                print(f"[API ROUTE process_meeting] Meeting status updated to 'failed' due to exception.")
 
-        except Exception:
+        except Exception as rollback_err:
             db.rollback()
-
-        print(
-            f"Meeting processing failed: {str(e)}"
-        )
+            print(f"[API ROUTE process_meeting] Rollback error during failure handling: {str(rollback_err)}")
 
     finally:
         db.close()
@@ -211,6 +225,7 @@ def process_transcript_only(
     transcript_text: str,
     speaker_map: list,
 ):
+    print(f"[API ROUTE process_transcript_only] Background task triggered. Meeting ID: {meeting_id}")
     db = SessionLocal()
     try:
         meeting = (
@@ -220,11 +235,13 @@ def process_transcript_only(
         )
 
         if not meeting:
+            print(f"[API ROUTE process_transcript_only] ERROR: Meeting {meeting_id} not found in DB.")
             raise ValueError(
                 f"Meeting {meeting_id} not found"
             )
 
         logger.info("Starting extraction agent")
+        print(f"[API ROUTE process_transcript_only] Running Extraction Agent for meeting '{meeting.title}'...")
 
         agent_result = run_extraction_agent(
             meeting_id=str(meeting.id),
@@ -233,6 +250,7 @@ def process_transcript_only(
         )
 
         logger.info("Extraction complete")
+        print(f"[API ROUTE process_transcript_only] Extraction complete. Saving intelligence output...")
 
         extraction = agent_result["final_extraction"]
 
@@ -262,8 +280,10 @@ def process_transcript_only(
 
         if agent_result["needs_human_review"]:
             meeting.status = "needs_review"
+            print(f"[API ROUTE process_transcript_only] Marked meeting as 'needs_review' (confidence: {extraction['confidence']})")
         else:
             meeting.status = "pending_review"
+            print(f"[API ROUTE process_transcript_only] Marked meeting as 'pending_review' (confidence: {extraction['confidence']})")
             
         logger.info("Saving intelligence")
         db.commit()
@@ -272,6 +292,7 @@ def process_transcript_only(
         logger.info(
             f"Meeting {meeting.id} processed successfully"
         )
+        print(f"[API ROUTE process_transcript_only] Meeting {meeting.id} processing successfully completed.")
 
         return intelligence
 
@@ -280,6 +301,7 @@ def process_transcript_only(
 
         traceback.print_exc()
 
+        print(f"[API ROUTE process_transcript_only] ERROR encountered: {str(e)}")
         db.rollback()
 
         meeting = (
@@ -291,6 +313,7 @@ def process_transcript_only(
         if meeting:
             meeting.status = "failed"
             db.commit()
+            print(f"[API ROUTE process_transcript_only] Meeting status updated to 'failed' due to exception.")
 
        
         logger.exception(
@@ -305,11 +328,14 @@ def process_transcription(
     meeting_id: str,
     file_path: str,
 ):
+    print(f"[API ROUTE process_transcription] Background task triggered. Meeting ID: {meeting_id}, File: {file_path}")
     db = SessionLocal()
 
     try:
+        print("[API ROUTE process_transcription] Retrieving transcription service...")
         service = get_transcription_service()
 
+        print(f"[API ROUTE process_transcription] Running transcribe on: {file_path}...")
         result = service.transcribe(file_path)
 
         transcript = Transcript(
@@ -320,6 +346,7 @@ def process_transcription(
         )
 
         db.add(transcript)
+        print("[API ROUTE process_transcription] Raw transcript saved.")
         logger.info("Transcription complete")
         meeting = (
             db.query(Meeting)
@@ -331,8 +358,10 @@ def process_transcription(
             meeting.duration_seconds = int(
                 result["duration"]
             )
-
-        meeting.status = "pending_speaker_mapping"        
+            meeting.status = "pending_speaker_mapping"
+            print(f"[API ROUTE process_transcription] Meeting status updated to 'pending_speaker_mapping'.")
+        else:
+            print(f"[API ROUTE process_transcription] WARNING: Meeting {meeting_id} not found in DB.")
         
         db.commit()
         logger.info(
@@ -342,6 +371,7 @@ def process_transcription(
         return
 
     except Exception as e:
+        print(f"[API ROUTE process_transcription] ERROR during transcription background processing: {str(e)}")
         meeting = (
             db.query(Meeting)
             .filter(Meeting.id == meeting_id)
@@ -351,6 +381,7 @@ def process_transcription(
         if meeting:
             meeting.status = "failed"
             db.commit()
+            print(f"[API ROUTE process_transcription] Meeting status marked as 'failed' due to error.")
 
         print(f"Processing failed: {e}")
 
@@ -371,10 +402,12 @@ async def upload_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /upload] Request by user: {current_user.email}, Title: {title}, Filename: {file.filename}")
     if not (
         file.content_type.startswith("audio/")
         or file.content_type.startswith("video/")
     ):
+        print(f"[API ROUTE /upload] ERROR: Rejected content_type: {file.content_type}")
         raise HTTPException(
             status_code=400,
             detail="Only audio/video files allowed"
@@ -383,6 +416,7 @@ async def upload_meeting(
     try:
         attendees = json.loads(attendees_json)
     except json.JSONDecodeError:
+        print(f"[API ROUTE /upload] ERROR: Invalid JSON attendees list: {attendees_json}")
         raise HTTPException(
             status_code=400,
             detail="Invalid attendees_json"
@@ -392,12 +426,14 @@ async def upload_meeting(
         title=title or file.filename,
         source=source,
         organiser_email=current_user.email,
+        created_by_user_id=current_user.id,
         attendees=attendees,
         status="processing",
     )
     db.add(meeting)
     db.commit()
     db.refresh(meeting)
+    print(f"[API ROUTE /upload] Meeting record created with ID: {meeting.id}")
 
     file_path = save_upload(
         file=file,
@@ -407,12 +443,14 @@ async def upload_meeting(
     meeting.recording_path = file_path
 
     db.commit()
+    print(f"[API ROUTE /upload] File saved to path: {file_path}")
 
     background_tasks.add_task(
         process_transcription,
         str(meeting.id),
         file_path,
     )
+    print(f"[API ROUTE /upload] Added 'process_transcription' background task for meeting ID: {meeting.id}.")
 
     return meeting
 
@@ -424,24 +462,39 @@ def list_meetings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /] List meetings requested by user: {current_user.email}")
     meetings=db.query(Meeting).order_by(Meeting.created_at.desc()).all()
-   
+
     visible_meetings = []
 
     for meeting in meetings:
 
         attendees = meeting.attendees or []
 
-        if (
-            meeting.organiser_email
-            == current_user.email
-        ):
-            visible_meetings.append(meeting)
+        can_view = (
+            meeting.created_by_user_id == current_user.id
+            or current_user.email in attendees
+        )
+
+        if not can_view:
             continue
 
-        if current_user.email in attendees:
-            visible_meetings.append(meeting)
+        visible_meetings.append(
+                {
+                    "id": str(meeting.id),
+                    "title": meeting.title,
+                    "status": meeting.status,
+                    "created_at": meeting.created_at,
+                    "source": meeting.source,
+                    "organiser_email": meeting.organiser_email,
+                    "can_edit": (
+                        meeting.created_by_user_id
+                        == current_user.id
+                    ),
+                }
+            )
 
+    print(f"[API ROUTE /] Returning {len(visible_meetings)} meetings for user: {current_user.email}")
     return visible_meetings
 
 @router.get(
@@ -453,6 +506,7 @@ def get_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}] Get meeting detail requested by user: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(
@@ -462,6 +516,7 @@ def get_meeting(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
@@ -472,6 +527,7 @@ def get_meeting(
         current_user,
     )
 
+    print(f"[API ROUTE /{meeting_id}] Returning details for meeting '{meeting.title}' (Status: {meeting.status}).")
     return meeting
 
 
@@ -481,6 +537,7 @@ def get_transcript(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/transcript] Get transcript requested by user: {current_user.email}")
     meeting= (
         db.query(Meeting)
         .filter(
@@ -498,6 +555,7 @@ def get_transcript(
     )
 
     if not transcript:
+        print(f"[API ROUTE /{meeting_id}/transcript] ERROR: Transcript not found.")
         raise HTTPException(
             status_code=404,
             detail="Transcript not found"
@@ -506,6 +564,7 @@ def get_transcript(
         meeting,
         current_user,
     )
+    print(f"[API ROUTE /{meeting_id}/transcript] Returning transcript text length: {len(transcript.raw_text)} chars.")
     return transcript
 
 @router.get(
@@ -517,6 +576,7 @@ def get_speakers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/speakers] Get speakers requested by user: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(
@@ -534,6 +594,7 @@ def get_speakers(
     )
 
     if not transcript:
+        print(f"[API ROUTE /{meeting_id}/speakers] ERROR: Transcript not found.")
         raise HTTPException(
             status_code=404,
             detail="Transcript not found",
@@ -574,6 +635,7 @@ def get_speakers(
         meeting,
         current_user,
     )
+    print(f"[API ROUTE /{meeting_id}/speakers] Returning {len(speakers)} mapped speakers.")
     return speakers
 
 @router.put(
@@ -586,6 +648,7 @@ def update_speakers(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/speakers] Update speakers requested by: {current_user.email}, Payload speaker labels: {list(payload.speaker_map.keys())}")
     meeting = (
         db.query(Meeting)
         .filter(Meeting.id == meeting_id)
@@ -593,11 +656,12 @@ def update_speakers(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}/speakers] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
         )
-    check_meeting_access(
+    check_meeting_edit_access(
         meeting,
         current_user,
     )
@@ -610,6 +674,7 @@ def update_speakers(
     )
 
     if not transcript:
+        print(f"[API ROUTE /{meeting_id}/speakers] ERROR: Transcript not found.")
         raise HTTPException(
             status_code=404,
             detail="Transcript not found",
@@ -664,6 +729,7 @@ def update_speakers(
     db.add(audit_log)
 
     db.commit()
+    print("[API ROUTE /{meeting_id}/speakers] Speaker mapping saved. Triggering process_transcript_only in background tasks...")
 
     background_tasks.add_task(
         process_transcript_only,
@@ -687,6 +753,7 @@ def get_intelligence(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/intelligence] Get intelligence requested by: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(
@@ -696,6 +763,7 @@ def get_intelligence(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}/intelligence] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
@@ -715,16 +783,33 @@ def get_intelligence(
     )
 
     if not intelligence:
+        print(f"[API ROUTE /{meeting_id}/intelligence] ERROR: Intelligence not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting intelligence not found",
         )
 
-    return intelligence
+    print(f"[API ROUTE /{meeting_id}/intelligence] Returning intelligence. Model used: {intelligence.ai_model_used}, Confidence: {intelligence.confidence}")
+    return {
+    "id": intelligence.id,
+    "meeting_id": intelligence.meeting_id,
+    "title": meeting.title,
+    "summary": intelligence.summary,
+    "confidence": intelligence.confidence,
+    "agent_run_log": intelligence.agent_run_log,
+    "approved_by": intelligence.approved_by,
+    "approved_at": intelligence.approved_at,
+    "created_at": intelligence.created_at,
+    "decisions": intelligence.decisions,
+    "topics_discussed": intelligence.topics_discussed,
+    "risks_and_concerns": intelligence.risks_and_concerns,
+    "notable_quotes": intelligence.notable_quotes,
+    "action_items": intelligence.action_items,
+}
 
 @router.put(
     "/{meeting_id}/intelligence",
-    response_model=IntelligenceResponse,
+    response_model=IntelligenceViewResponse,
 )
 def update_intelligence(
     meeting_id: UUID,
@@ -732,6 +817,7 @@ def update_intelligence(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/intelligence] Update intelligence requested by: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(
@@ -741,12 +827,13 @@ def update_intelligence(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}/intelligence] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
         )
 
-    check_meeting_access(
+    check_meeting_edit_access(
         meeting,
         current_user,
     )
@@ -760,12 +847,14 @@ def update_intelligence(
     )
 
     if not intelligence:
+        print(f"[API ROUTE /{meeting_id}/intelligence] ERROR: Intelligence not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting intelligence not found",
         )
 
     old_value = {
+        "title": meeting.title,
         "summary": intelligence.summary,
         "decisions": intelligence.decisions,
         "topics_discussed": intelligence.topics_discussed,
@@ -791,6 +880,8 @@ def update_intelligence(
         item.model_dump()
         for item in payload.notable_quotes
     ]
+    if payload.title:
+        meeting.title = payload.title
 
     intelligence.action_items = [
         item.model_dump()
@@ -810,10 +901,20 @@ def update_intelligence(
     )
 
     db.commit()
-
+    db.refresh(meeting)
     db.refresh(intelligence)
+    print(f"[API ROUTE /{meeting_id}/intelligence] Intelligence successfully updated.")
 
-    return intelligence
+    return {
+    "title": meeting.title,
+    "summary": intelligence.summary,
+    "decisions": intelligence.decisions,
+    "topics_discussed": intelligence.topics_discussed,
+    "risks_and_concerns": intelligence.risks_and_concerns,
+    "notable_quotes": intelligence.notable_quotes,
+    "action_items": intelligence.action_items,
+}
+    
 
 @router.post(
     "/{meeting_id}/approve"
@@ -823,6 +924,7 @@ def approve_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/approve] Approve meeting requested by: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(
@@ -832,14 +934,15 @@ def approve_meeting(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}/approve] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
         )
-    check_meeting_access(
+    check_meeting_edit_access(
         meeting,
         current_user,
-    )    
+    )  
     intelligence = (
         db.query(MeetingIntelligence)
         .filter(
@@ -850,6 +953,7 @@ def approve_meeting(
     )
 
     if not intelligence:
+        print(f"[API ROUTE /{meeting_id}/approve] ERROR: Intelligence not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting intelligence not found",
@@ -879,7 +983,15 @@ def approve_meeting(
         },
     )
 
+    print(f"[API ROUTE /{meeting_id}/approve] Generating PDF report for meeting '{meeting.title}'...")
+    pdf_path = generate_meeting_pdf(
+        meeting=meeting,
+        intelligence=intelligence,
+    )
+
+    meeting.pdf_path = pdf_path
     db.commit()
+    print(f"[API ROUTE /{meeting_id}/approve] Meeting status updated to 'approved' and PDF saved: {pdf_path}")
 
     return {
         "message": "Meeting approved"
@@ -894,6 +1006,7 @@ def test_process_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    print(f"[API ROUTE /{meeting_id}/test-process] Test process meeting requested by: {current_user.email}")
     meeting = (
         db.query(Meeting)
         .filter(Meeting.id == meeting_id)
@@ -901,6 +1014,7 @@ def test_process_meeting(
     )
 
     if not meeting:
+        print(f"[API ROUTE /{meeting_id}/test-process] ERROR: Meeting not found.")
         raise HTTPException(
             status_code=404,
             detail="Meeting not found",
@@ -923,7 +1037,99 @@ def test_process_meeting(
     )
 
     db.commit()
+    print(f"[API ROUTE /{meeting_id}/test-process] Test transcript created. Meeting status updated to 'pending_speaker_mapping'.")
 
     return {
         "message": "Test transcript created"
+    }
+
+@router.get("/{meeting_id}/pdf")
+def download_pdf(
+    meeting_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    print(f"[API ROUTE /{meeting_id}/pdf] Download PDF requested by: {current_user.email}")
+    meeting = (
+        db.query(Meeting)
+        .filter(Meeting.id == meeting_id)
+        .first()
+    )
+
+    if not meeting:
+        print(f"[API ROUTE /{meeting_id}/pdf] ERROR: Meeting not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
+
+    if not meeting.pdf_path:
+        print(f"[API ROUTE /{meeting_id}/pdf] ERROR: PDF has not been generated for this meeting.")
+        raise HTTPException(
+            status_code=404,
+            detail="PDF not generated",
+        )
+
+    meeting_date = meeting.created_at.strftime(
+        "%Y-%m-%d"
+    )
+
+    filename = (
+        f"{meeting.title}_{meeting_date}.pdf"
+    )
+    print(f"[API ROUTE /{meeting_id}/pdf] Returning PDF file response: '{filename}' from local path: '{meeting.pdf_path}'")
+
+    return FileResponse(
+        path=meeting.pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+    )
+@router.post("/{meeting_id}/send-email")
+def send_summary_email(
+    meeting_id: UUID,
+    payload: SendReportRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    print(f"[API ROUTE /{meeting_id}/send-email] Send summary email requested by: {current_user.email}")
+    meeting = (
+        db.query(Meeting)
+        .filter(Meeting.id == meeting_id)
+        .first()
+    )
+
+    if not meeting:
+        print(f"[API ROUTE /{meeting_id}/send-email] ERROR: Meeting not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    check_meeting_access(
+        meeting,
+        current_user,
+    )
+
+    if not meeting.pdf_path:
+        print(f"[API ROUTE /{meeting_id}/send-email] ERROR: PDF has not been generated for this meeting.")
+        raise HTTPException(
+            status_code=404,
+            detail="PDF not generated",
+        )
+
+    print(f"[API ROUTE /{meeting_id}/send-email] Triggering send_meeting_report_email for recipients: {payload.recipients}")
+    send_meeting_report_email(
+        organizer=meeting.organiser_email,
+        recipients=payload.recipients,
+        pdf_path=meeting.pdf_path,
+        meeting_title=meeting.title,
+    )
+
+    return {
+        "message": "Report sent successfully"
     }

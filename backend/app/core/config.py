@@ -12,13 +12,14 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     DEEPGRAM_API_KEY: str = ""
     TRANSCRIPTION_PROVIDER: str = "whisperx"
-    LLM_PROVIDER: str = "groq"
-
+    LLM_PROVIDER: str 
+    GROQ_API_KEY: str
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     EMAIL_PROVIDER: str = "smtp"
 
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
+    SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
 
     HF_TOKEN: str

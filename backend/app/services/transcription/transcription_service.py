@@ -23,6 +23,7 @@ def get_transcription_service(
     global _transcription_service
 
     if _transcription_service is not None:
+        print("[TRANSCRIPTION SERVICE] Returning cached transcription service instance.")
         return _transcription_service
 
     provider = (
@@ -30,22 +31,25 @@ def get_transcription_service(
         .lower()
     )
 
-    if provider == "whisperx":
+    print(f"[TRANSCRIPTION SERVICE] Initializing transcription provider: {provider}")
 
+    if provider == "whisperx":
+        print("[TRANSCRIPTION SERVICE] WhisperX provider selected. Instantiating WhisperXService.")
         _transcription_service = (
             WhisperXService()
         )
-
+        print("[TRANSCRIPTION SERVICE] WhisperXService instantiation complete.")
         return _transcription_service
 
     if provider == "deepgram":
-
+        print("[TRANSCRIPTION SERVICE] Deepgram provider selected. Instantiating DeepgramService.")
         _transcription_service = (
             DeepgramService()
         )
-
+        print("[TRANSCRIPTION SERVICE] DeepgramService instantiation complete.")
         return _transcription_service
 
+    print(f"[TRANSCRIPTION SERVICE] ERROR: Unrecognized provider '{provider}'")
     raise ValueError(
         f"Unknown transcription provider: {provider}"
     )

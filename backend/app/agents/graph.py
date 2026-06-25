@@ -101,7 +101,9 @@ def run_extraction_agent(
     speaker_map: dict,
 ) -> dict:
 
+    print(f"[AGENT GRAPH] Compiling extraction state graph for meeting ID: {meeting_id}...")
     graph = build_graph()
+    print("[AGENT GRAPH] Graph compiled successfully.")
 
     initial_state = {
         "meeting_id": meeting_id,
@@ -122,8 +124,14 @@ def run_extraction_agent(
         "error": "",
     }
 
-    result = graph.invoke(
-        initial_state
-    )
+    print(f"[AGENT GRAPH] Invoking graph. Transcript length: {len(transcript_text)} characters, Speaker map entries: {len(speaker_map) if speaker_map else 0}.")
+    try:
+        result = graph.invoke(
+            initial_state
+        )
+        print(f"[AGENT GRAPH] Graph execution completed successfully. Needs human review: {result.get('needs_human_review')}, Confidence: {result.get('confidence')}")
+    except Exception as e:
+        print(f"[AGENT GRAPH] ERROR during Graph execution: {str(e)}")
+        raise e
 
     return result

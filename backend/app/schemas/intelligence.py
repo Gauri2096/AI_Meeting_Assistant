@@ -22,7 +22,7 @@ class NotableQuote(BaseModel):
 
 class IntelligenceUpdate(BaseModel):
     summary: str
-
+    title:str
     decisions: list[str]
 
     topics_discussed: list[TopicDiscussed]
@@ -51,3 +51,12 @@ class IntelligenceResponse(IntelligenceUpdate):
 
     class Config:
         from_attributes = True
+
+class IntelligenceViewResponse(BaseModel):
+    title: str
+    summary: str
+    decisions: list
+    topics_discussed: list
+    risks_and_concerns: list
+    notable_quotes: list
+    action_items: list

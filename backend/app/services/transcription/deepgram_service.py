@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class DeepgramService(TranscriptionService):
 
     def __init__(self):
+        print("[DEEPGRAM SERVICE] Initializing DeepgramClient...")
         self.client = DeepgramClient(
             api_key=settings.DEEPGRAM_API_KEY
         )
@@ -23,6 +24,7 @@ class DeepgramService(TranscriptionService):
         logger.info(
             "Deepgram service initialized"
         )
+        print("[DEEPGRAM SERVICE] Deepgram service client successfully initialized.")
 
     def transcribe(
         self,
@@ -32,27 +34,42 @@ class DeepgramService(TranscriptionService):
         logger.info(
             f"Starting Deepgram transcription: {audio_file_path}"
         )
+        print(f"[DEEPGRAM SERVICE] Transcribe called for audio file: {audio_file_path}")
+        
+        try:
+            file_path = Path(audio_file_path)
+            file_size = file_path.stat().st_size
+            print(f"[DEEPGRAM SERVICE] Audio file exists: {file_path.exists()}, size: {file_size} bytes")
+        except Exception as e:
+            print(f"[DEEPGRAM SERVICE] Warning: could not retrieve file statistics: {str(e)}")
 
+        print("[DEEPGRAM SERVICE] Reading audio file into memory...")
         with open(audio_file_path, "rb") as audio:
             buffer_data = audio.read()
 
-        response = (
-            self.client.listen
-            .v1
-            .media
-            .transcribe_file(
-                request=buffer_data,
-                model="nova-3",
+        print("[DEEPGRAM SERVICE] Invoking Deepgram API transcribe_file (model: 'nova-3', options: smart_format, punctuate, diarize, utterances, paragraphs)...")
+        try:
+            response = (
+                self.client.listen
+                .v1
+                .media
+                .transcribe_file(
+                    request=buffer_data,
+                    model="nova-3",
 
-                smart_format=True,
-                punctuate=True,
+                    smart_format=True,
+                    punctuate=True,
 
-                diarize=True,
-                utterances=True,
+                    diarize=True,
+                    utterances=True,
 
-                paragraphs=True,
+                    paragraphs=True,
+                )
             )
-        )
+            print("[DEEPGRAM SERVICE] Received response from Deepgram API.")
+        except Exception as e:
+            print(f"[DEEPGRAM SERVICE] ERROR during Deepgram API call: {str(e)}")
+            raise e
 
         result = response.results
 
@@ -72,6 +89,8 @@ class DeepgramService(TranscriptionService):
         duration = (
             response.metadata.duration
         )
+        
+        print(f"[DEEPGRAM SERVICE] Transcript metadata - Duration: {duration}s, Language: {language}, Character count: {len(full_text)}")
 
         speaker_segments = (
             self._build_segments(
@@ -82,6 +101,7 @@ class DeepgramService(TranscriptionService):
         logger.info(
             "Deepgram transcription complete"
         )
+        print(f"[DEEPGRAM SERVICE] Transcription complete. Final segments count: {len(speaker_segments)}")
 
         return {
             "full_text": full_text,
@@ -98,8 +118,10 @@ class DeepgramService(TranscriptionService):
         segments = []
 
         if not utterances:
+            print("[DEEPGRAM SERVICE] No utterances found in response. Returning empty segments list.")
             return segments
 
+        print(f"[DEEPGRAM SERVICE] Mapping {len(utterances)} utterances to speaker segments...")
         for utterance in utterances:
 
             speaker = (
@@ -115,4 +137,5 @@ class DeepgramService(TranscriptionService):
                 }
             )
 
+        print(f"[DEEPGRAM SERVICE] Speaker segments mapping complete.")
         return segments

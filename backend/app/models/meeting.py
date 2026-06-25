@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy import Column, DateTime, Integer, JSON, String, func
 from sqlalchemy.dialects.postgresql import UUID
-
+from sqlalchemy import ForeignKey
 from app.core.database import Base
 
 
@@ -33,4 +33,14 @@ class Meeting(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+    pdf_path = Column(String, nullable=True)
+
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
     )

@@ -68,7 +68,6 @@ def get_current_user(
     try:
         if not token:
             raise credentials_exception
-        print("TOKEN:", token)
         payload = jwt.decode(
             token,
             SECRET_KEY,

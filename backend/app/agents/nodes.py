@@ -3,6 +3,7 @@ from tarfile import ExtractError
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
 )
+from langchain_groq import ChatGroq
 
 from langchain_core.messages import (
     HumanMessage,
@@ -30,15 +31,45 @@ from app.core.config import (
 
 settings = get_settings()
 
-llm = ChatGoogleGenerativeAI(
+gemini_llm = ChatGoogleGenerativeAI(
     model=settings.GEMINI_MODEL,
     google_api_key=settings.GOOGLE_API_KEY,
     temperature=0.1,
 )
 
-structured_llm = llm.with_structured_output(
-    ExtractionResult
+groq_llm = ChatGroq(
+    model=settings.GROQ_MODEL,
+    api_key=settings.GROQ_API_KEY,
+    temperature=0.1,
 )
+structured_gemini = (
+    gemini_llm.with_structured_output(
+        ExtractionResult
+    )
+)
+
+structured_groq = (
+    groq_llm.with_structured_output(
+        ExtractionResult
+    )
+)
+
+def invoke_with_fallback(messages):
+
+    try:
+        print("Using Gemini")
+
+        return structured_gemini.invoke(messages)
+
+    except Exception as e:
+
+        print(
+            f"Gemini failed: {str(e)}"
+        )
+
+        print("Using Groq fallback")
+
+        return structured_groq.invoke(messages)
 
 def add_log(
     state: MeetingAgentState,
@@ -74,7 +105,7 @@ def invoke_extraction_llm(
         ),
     ]
 
-    return structured_llm.invoke(messages)
+    return invoke_with_fallback(messages)
 
 def invoke_reconciliation_llm(
     chunk_extractions: list,
@@ -89,7 +120,7 @@ def invoke_reconciliation_llm(
         ),
     ]
 
-    return structured_llm.invoke(messages)
+    return invoke_with_fallback(messages)
 
 
 
@@ -108,6 +139,8 @@ def analyse_transcript(
         word_count * 1.3
     )
 
+    print(f"[NODE analyse_transcript] Analyzing transcript: {word_count} words (estimated ~{token_estimate} tokens).")
+
     log = add_log(
         state,
         (
@@ -125,17 +158,23 @@ def analyse_transcript(
 def route_by_length(
     state: MeetingAgentState,
 ):
-    if state["transcript_length"] > 2500:
+    length = state["transcript_length"]
+    print(f"[NODE route_by_length] Checking routing. Transcript length: {length} words.")
+    if length > 2500:
+        print("[NODE route_by_length] Transcript length > 2500. Routing to 'chunk_transcript'.")
         return "chunk_transcript"  
+    print("[NODE route_by_length] Transcript length <= 2500. Routing to 'extract_directly'.")
     return "extract_directly"
     
 
 def chunk_transcript_node(
     state: MeetingAgentState,
 ):
+    print("[NODE chunk_transcript] Splitting transcript into smaller chunks...")
     chunks = chunk_transcript(
         state["transcript_text"]
     )
+    print(f"[NODE chunk_transcript] Split complete. Created {len(chunks)} chunks.")
 
     log = add_log(
         state,
@@ -151,6 +190,7 @@ def extract_directly(
     state: MeetingAgentState,
 ) -> dict:
 
+    print(f"[NODE extract_directly] Invoking LLM ({settings.GEMINI_MODEL}) for direct extraction...")
     messages = [
         SystemMessage(
             content=EXTRACTION_SYSTEM_PROMPT
@@ -163,11 +203,15 @@ def extract_directly(
         ),
     ]
 
-    response = llm.invoke(messages)
+    try:
+        response = invoke_with_fallback(messages)
+        print("[NODE extract_directly] LLM response received.")
+    except Exception as e:
+        print(f"[NODE extract_directly] ERROR during LLM execution: {str(e)}")
+        raise e
 
-    extraction = ExtractionResult.model_validate_json(
-        response.content
-    )
+    extraction = response
+    print(f"[NODE extract_directly] Parsed extraction result. Confidence: {extraction.confidence}")
 
     log = state["agent_run_log"] + [
         "Extracted transcript directly"
@@ -184,15 +228,17 @@ def extract_each_chunk(
 ) -> dict:
 
     chunks = state["chunks"]
+    print(f"[NODE extract_each_chunk] Starting extraction of {len(chunks)} chunks using LLM: {settings.GEMINI_MODEL}...")
 
     results = []
-
     log = state["agent_run_log"].copy()
-    log.append(
-    f"[NODE] extracting chunk "
-    f"{index + 1}/{len(chunks)}"
-)
+
     for index, chunk in enumerate(chunks):
+        print(f"[NODE extract_each_chunk] Processing chunk {index + 1}/{len(chunks)}...")
+        log.append(
+            f"[NODE] extracting chunk "
+            f"{index + 1}/{len(chunks)}"
+        )
 
         messages = [
             SystemMessage(
@@ -209,13 +255,15 @@ def extract_each_chunk(
             ),
         ]
 
-        response = llm.invoke(messages)
+        try:
+            response = invoke_with_fallback(messages)
+            print(f"[NODE extract_each_chunk] LLM response received for chunk {index + 1}/{len(chunks)}.")
+        except Exception as e:
+            print(f"[NODE extract_each_chunk] ERROR during LLM execution for chunk {index + 1}/{len(chunks)}: {str(e)}")
+            raise e
 
-        extraction = (
-            ExtractionResult.model_validate_json(
-                response.content
-            )
-        )
+        extraction = response
+        print(f"[NODE extract_each_chunk] Chunk {index + 1} parsed confidence: {extraction.confidence}")
 
         results.append(
             extraction.model_dump()
@@ -225,6 +273,7 @@ def extract_each_chunk(
             f"Extracted chunk {index + 1}/{len(chunks)}"
         )
 
+    print(f"[NODE extract_each_chunk] Finished extracting all {len(chunks)} chunks.")
     return {
         "chunk_extractions": results,
         "agent_run_log": log,
@@ -233,12 +282,15 @@ def extract_each_chunk(
 def reconcile_chunks(
     state: MeetingAgentState,
 ) -> dict:
-    log.append(
-    f"[NODE] reconcile_chunks "
-    f"merging {len(chunk_extractions)} chunk results"
-)
     chunk_extractions = (
         state["chunk_extractions"]
+    )
+    log = state["agent_run_log"].copy()
+
+    print(f"[NODE reconcile_chunks] Merging/reconciling {len(chunk_extractions)} chunk results using LLM: {settings.GEMINI_MODEL}...")
+    log.append(
+        f"[NODE] reconcile_chunks "
+        f"merging {len(chunk_extractions)} chunk results"
     )
 
     messages = [
@@ -252,13 +304,17 @@ def reconcile_chunks(
         ),
     ]
 
-    response = llm.invoke(messages)
+    try:
+        response = invoke_with_fallback(messages)
+        print("[NODE reconcile_chunks] LLM reconciliation response received.")
+    except Exception as e:
+        print(f"[NODE reconcile_chunks] ERROR during LLM reconciliation execution: {str(e)}")
+        raise e
 
-    merged = ExtractionResult.model_validate_json(
-        response.content
-    )
+    merged = response
+    print(f"[NODE reconcile_chunks] Reconciliation parsed. Confidence: {merged.confidence}")
 
-    log = state["agent_run_log"] + [
+    log = log + [
         "Reconciled chunk extractions"
     ]
 
@@ -279,10 +335,12 @@ def check_confidence(
             0.0,
         )
     )
-    
+    print(f"[NODE check_confidence] Evaluation of confidence: {confidence}")
     if confidence >= 0.8:
+        print("[NODE check_confidence] Confidence meets threshold (>= 0.8). Routing to 'finalise'.")
         return "finalise"
 
+    print("[NODE check_confidence] Confidence is low (< 0.8). Routing to 'flag_for_review'.")
     return "flag_for_review"
 
 def flag_review(
@@ -301,6 +359,7 @@ def flag_review(
         f"({confidence})"
     )
 
+    print(f"[NODE flag_review] Flagging meeting analysis for human review: {reason}")
     log = add_log(
         state,
         (
@@ -318,6 +377,7 @@ def flag_review(
 def finalise(
     state: MeetingAgentState,
 ):
+    print("[NODE finalise] Finalizing extracted structure...")
     extraction = (
         ExtractionResult(
             **state[
@@ -325,7 +385,7 @@ def finalise(
             ]
         )
     )
-    
+    print("[NODE finalise] Finalization complete.")
     return {
         "final_extraction":
             extraction.model_dump()
