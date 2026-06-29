@@ -3,7 +3,7 @@
 import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSpeakers, updateSpeakers } from "@/lib/api/meetings";
-import { SpeakerResponse, SpeakerDetails } from "@/types/speaker";
+import { SpeakerResponse } from "@/types/speaker";
 import SpeakerMappingForm from "@/components/meetings/SpeakerMappingForm";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -50,7 +50,7 @@ export default function SpeakerMappingPage({ params }: SpeakerMappingPageProps) 
     }
   }, [meetingId]);
 
-  const handleSubmit = async (mapping: Record<string, SpeakerDetails>) => {
+  const handleSubmit = async (mapping: Record<string, string>) => {
     setIsSubmitting(true);
     setError(null);
     try {

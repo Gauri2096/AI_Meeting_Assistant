@@ -17,6 +17,7 @@ env/
 # Uploads / recordings
 uploads/
 recordings/
+generated_reports_pdf/
 
 # Alembic cache
 *.pyc

@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/meetings";
 import { MeetingDetail, TranscriptResponse } from "@/types/meeting";
 import { MeetingIntelligence } from "@/types/intelligence";
+import { SpeakerResponse } from "@/types/speaker";
 import TranscriptViewer from "@/components/meetings/TranscriptViewer";
 import IntelligencePanel from "@/components/meetings/IntelligencePanel";
 import { useAuth } from "@/hooks/useAuth";

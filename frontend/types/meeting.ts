@@ -8,7 +8,10 @@ export interface Attendee {
 export type MeetingStatus =
   | "processing"
   | "pending_speaker_mapping"
+  | "failed_speaker_mapping"
+  | "pending_extraction"
   | "extracting"
+  | "failed_extraction"
   | "pending_review"
   | "needs_review"
   | "approved"
