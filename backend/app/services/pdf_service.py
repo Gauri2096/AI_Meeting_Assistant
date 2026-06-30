@@ -186,7 +186,7 @@ def generate_meeting_pdf(
     else:
         for idx, item in enumerate(topics, start=1):
 
-            topic = item.get("topic", "Unknown")
+            topic = item.get("title", "Unknown")
             discussion = item.get("discussion", "")
 
             elements.append(
@@ -226,7 +226,7 @@ def generate_meeting_pdf(
 
             owner = item.get("owner", "Unknown")
             task = item.get("description", "")
-            due_date = item.get("due_date", "Not specified")
+            due_date = item.get("deadline_mentioned", "Not specified")
 
             elements.append(
                 _body(
